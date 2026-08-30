@@ -23,3 +23,24 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env*.local
+
+# Python & Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+ENV/
+
+# Databases & local data
+*.db
+*.sqlite
+*.sqlite3
+satquery.db
+data/uploads/*
+!data/uploads/.gitkeep

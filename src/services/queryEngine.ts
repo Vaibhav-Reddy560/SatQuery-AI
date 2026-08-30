@@ -171,13 +171,27 @@ export function processQuery(userQuery: Query): QueryResponse {
   };
 }
 
+import { sendQueryToBackend } from "./apiClient";
+
 /**
- * Simulate a processing delay (400–1000 ms) then return the response.
- * Useful for showing a loading state in the UI.
+ * Process query asynchronously via Backend FastAPI VLM service if available,
+ * with fallback to the local simulated pipeline.
  */
-export function processQueryAsync(userQuery: Query): Promise<QueryResponse> {
+export async function processQueryAsync(userQuery: Query): Promise<QueryResponse> {
+  // Attempt backend API call first
+  const centre: [number, number] = [78.9629, 20.5937];
+  const location = "Selected Region";
+  
+  const backendResponse = await sendQueryToBackend(userQuery.id, userQuery.raw, centre, location);
+  if (backendResponse) {
+    return backendResponse;
+  }
+
+  // Local fallback execution
   const delay = 400 + Math.random() * 600;
   return new Promise((resolve) => {
     setTimeout(() => resolve(processQuery(userQuery)), delay);
   });
 }
+
+

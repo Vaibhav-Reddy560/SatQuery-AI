@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: satquery-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://satquery:satquery123@postgres:5432/satquery_db
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_NAME=SatQuery-VLM-Sentinel-v1"
+      - SECRET_KEY=satquery_secret_key_sih2026_isro_space_tech_987654321
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: satquery-worker
+    command: python -m backend.app.worker
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://satquery:satquery123@postgres:5432/satquery_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - backend
+      - redis
+
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: satquery-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: satquery
+      POSTGRES_PASSWORD: satquery123
+      POSTGRES_DB: satquery_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: satquery-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
