@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send,
   User,
@@ -10,13 +10,18 @@ import {
   ThumbsUp,
   ThumbsDown,
   Sparkles,
+  Loader2,
+  MapPin,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
 import { queryMessages } from "@/data/mockData";
 import type { QueryMessage } from "@/types";
+import type { Query, QueryResponse } from "@/types/query";
 import { formatTime } from "@/lib/format";
+import { processQueryAsync } from "@/services/queryEngine";
+import { intentLabel } from "@/services/queryParser";
 
 const quickPrompts = [
   "Identify buildings in the selected region",
@@ -25,10 +30,15 @@ const quickPrompts = [
   "What areas show the most urban expansion?",
   "Estimate the area of deforestation in Sundarbans",
   "Detect solar panel installations in Rajasthan",
+  "Classify land cover in Punjab",
+  "Measure the area of this lake",
+  "What changed since 2024?",
+  "How far is the coastline?",
 ];
 
+// ── Sub-components ─────────────────────────────────────────
+
 function MarkdownLike({ content }: { content: string }) {
-  // Simple bold parsing
   const parts = content.split(/(\*\*.*?\*\*)/g);
   return (
     <div className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -38,6 +48,26 @@ function MarkdownLike({ content }: { content: string }) {
         }
         return <span key={i}>{part}</span>;
       })}
+    </div>
+  );
+}
+
+function ProcessingIndicator({ intent }: { intent?: string }) {
+  return (
+    <div className="flex gap-3">
+      <div className="h-8 w-8 rounded-full bg-accent-muted flex items-center justify-center shrink-0 mt-0.5">
+        <Loader2 className="h-4 w-4 text-accent animate-spin" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-medium text-text-primary">SatQuery</span>
+          <Badge variant="info">Processing</Badge>
+        </div>
+        <div className="text-sm text-text-muted flex items-center gap-2">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          {intent ? `Running ${intent}…` : "Analysing query…"}
+        </div>
+      </div>
     </div>
   );
 }
@@ -82,7 +112,7 @@ function AssistantMessage({ msg }: { msg: QueryMessage }) {
         )}
 
         {/* Suggested Actions */}
-        {msg.suggestedActions && (
+        {msg.suggestedActions && msg.suggestedActions.length > 0 && (
           <div className="mt-3 flex gap-2 flex-wrap">
             {msg.suggestedActions.map((action, i) => (
               <button
@@ -97,13 +127,13 @@ function AssistantMessage({ msg }: { msg: QueryMessage }) {
 
         {/* Message Actions */}
         <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors" title="Copy">
+          <button className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors" title="Copy" aria-label="Copy message">
             <Copy className="h-3 w-3" />
           </button>
-          <button className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors" title="Good response">
+          <button className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors" title="Good response" aria-label="Good response">
             <ThumbsUp className="h-3 w-3" />
           </button>
-          <button className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors" title="Bad response">
+          <button className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors" title="Bad response" aria-label="Bad response">
             <ThumbsDown className="h-3 w-3" />
           </button>
         </div>
@@ -131,48 +161,77 @@ function UserMessage({ msg }: { msg: QueryMessage }) {
   );
 }
 
+// ── Main Component ─────────────────────────────────────────
+
 export default function Query() {
   const [messages, setMessages] = useState<QueryMessage[]>(queryMessages);
   const [input, setInput] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingIntent, setProcessingIntent] = useState<string | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isProcessing]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = useCallback(async () => {
+    const text = input.trim();
+    if (!text || isProcessing) return;
 
+    // 1. Add user message
     const userMsg: QueryMessage = {
       id: `msg-${Date.now()}`,
       role: "user",
-      content: input,
+      content: text,
       timestamp: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setIsProcessing(true);
+    setProcessingIntent(undefined);
 
-    // Mock response after a delay
-    setTimeout(() => {
-      const response: QueryMessage = {
+    // 2. Build query object
+    const query: Query = {
+      id: `q-${Date.now()}`,
+      raw: text,
+      timestamp: new Date().toISOString(),
+    };
+
+    // 3. Run the engine (simulated delay is built in)
+    try {
+      const response: QueryResponse = await processQueryAsync(query);
+
+      // Show intent while "processing" completes
+      setProcessingIntent(intentLabel(response.intent.type));
+
+      // Small extra pause so user sees the intent label
+      await new Promise((r) => setTimeout(r, 300));
+
+      // 4. Add assistant message
+      const assistantMsg: QueryMessage = {
         id: `msg-${Date.now() + 1}`,
         role: "assistant",
-        content:
-          "I've analyzed your query using the latest available satellite imagery. Based on the multi-spectral analysis and feature detection algorithms, here are my findings:\n\n• The region shows **significant changes** in the analyzed period\n• **3 major features** were identified with high confidence\n• Results are consistent with known ground-truth data\n\nWould you like me to show these results on the map or generate a detailed report?",
+        content: response.responseText,
         timestamp: new Date().toISOString(),
-        attachments: [
-          {
-            type: "image",
-            label: "Analysis result overlay",
-            confidence: 0.89,
-          },
-        ],
-        suggestedActions: ["Show on map", "Export results", "Ask follow-up"],
+        attachments: response.attachments,
+        suggestedActions: response.suggestedActions,
       };
-      setMessages((prev) => [...prev, response]);
-    }, 1500);
-  };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch {
+      const errorMsg: QueryMessage = {
+        id: `msg-${Date.now() + 1}`,
+        role: "assistant",
+        content: "I encountered an error processing your query. Please try again.",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsProcessing(false);
+      setProcessingIntent(undefined);
+    }
+  }, [input, isProcessing]);
 
   return (
     <div className="flex h-[calc(100vh-8rem)] -m-6 p-0">
@@ -191,7 +250,7 @@ export default function Query() {
                   Ask natural-language questions about areas, objects, changes, and conditions visible in satellite data.
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  {quickPrompts.map((prompt, i) => (
+                  {quickPrompts.slice(0, 6).map((prompt, i) => (
                     <button
                       key={i}
                       onClick={() => setInput(prompt)}
@@ -214,6 +273,10 @@ export default function Query() {
                   )}
                 </div>
               ))}
+
+              {/* Processing indicator */}
+              {isProcessing && <ProcessingIndicator intent={processingIntent} />}
+
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -232,20 +295,26 @@ export default function Query() {
                     handleSend();
                   }
                 }}
-                placeholder="Ask a question about satellite imagery..."
+                placeholder={isProcessing ? "Analysis in progress…" : "Ask a question about satellite imagery..."}
                 className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none resize-none min-h-[24px] max-h-[120px]"
                 rows={1}
+                disabled={isProcessing}
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={!input.trim() || isProcessing}
                 className="p-2 bg-accent rounded-lg text-white hover:bg-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                aria-label="Send query"
               >
-                <Send className="h-4 w-4" />
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </button>
             </div>
             <p className="text-[10px] text-text-muted mt-2 text-center">
-              SatQuery AI — Responses are based on satellite imagery analysis. Verify critical findings with ground truth.
+              SatQuery AI — Responses are based on mock satellite imagery analysis. Verify critical findings with ground truth.
             </p>
           </div>
         </div>
@@ -260,7 +329,8 @@ export default function Query() {
               <button
                 key={i}
                 onClick={() => setInput(prompt)}
-                className="w-full text-left px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors border border-transparent hover:border-border-subtle"
+                disabled={isProcessing}
+                className="w-full text-left px-3 py-2.5 text-sm text-text-secondary rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors border border-transparent hover:border-border-subtle disabled:opacity-40"
               >
                 {prompt}
               </button>
@@ -270,20 +340,21 @@ export default function Query() {
           <div className="mt-6 pt-4 border-t border-border-subtle">
             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Recent Queries</h3>
             <div className="space-y-2">
-              {[
-                "Water bodies near Mumbai",
-                "Urban growth in Navi Mumbai",
-                "Deforestation Sundarbans",
-              ].map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => setInput(q)}
-                  className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-text-muted rounded-lg hover:bg-bg-hover hover:text-text-secondary transition-colors"
-                >
-                  <Sparkles className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{q}</span>
-                </button>
-              ))}
+              {messages
+                .filter((m) => m.role === "user")
+                .slice(-5)
+                .reverse()
+                .map((msg) => (
+                  <button
+                    key={msg.id}
+                    onClick={() => setInput(msg.content)}
+                    disabled={isProcessing}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-text-muted rounded-lg hover:bg-bg-hover hover:text-text-secondary transition-colors disabled:opacity-40"
+                  >
+                    <Sparkles className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{msg.content}</span>
+                  </button>
+                ))}
             </div>
           </div>
         </div>
