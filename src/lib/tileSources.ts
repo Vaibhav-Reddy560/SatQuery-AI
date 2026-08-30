@@ -12,6 +12,24 @@ import type { TileSource } from "@/types/map";
 // ── Available tile sources ────────────────────────────────
 
 export const TILE_SOURCES: Record<string, TileSource> = {
+  esriDark: {
+    id: "esriDark",
+    name: "Esri Dark Canvas",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    type: "raster",
+    attribution:
+      'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16,
+  },
+  esriSatellite: {
+    id: "esriSatellite",
+    name: "Esri Satellite",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    type: "raster",
+    attribution:
+      'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and GIS User Community',
+    maxZoom: 19,
+  },
   osm: {
     id: "osm",
     name: "OpenStreetMap",
@@ -21,24 +39,6 @@ export const TILE_SOURCES: Record<string, TileSource> = {
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   },
-  cartoDark: {
-    id: "cartoDark",
-    name: "CartoDB Dark",
-    url: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    type: "raster",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-    maxZoom: 20,
-  },
-  cartoLight: {
-    id: "cartoLight",
-    name: "CartoDB Light",
-    url: "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    type: "raster",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-    maxZoom: 20,
-  },
 };
 
 // ── Resolve active source ─────────────────────────────────
@@ -46,7 +46,7 @@ export const TILE_SOURCES: Record<string, TileSource> = {
 /**
  * Returns the tile source to use.
  * Prefers VITE_MAP_STYLE_URL if set (for production vector tiles),
- * otherwise falls back to CartoDB Dark (fits our dark-first UI).
+ * otherwise falls back to Esri Dark Canvas (fits our dark-first UI).
  */
 export function getActiveTileSource(): TileSource {
   const envUrl = import.meta.env.VITE_MAP_STYLE_URL as string | undefined;
@@ -60,5 +60,5 @@ export function getActiveTileSource(): TileSource {
       maxZoom: 22,
     };
   }
-  return TILE_SOURCES.cartoDark;
+  return TILE_SOURCES.esriDark;
 }
