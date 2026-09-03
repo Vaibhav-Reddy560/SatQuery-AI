@@ -34,7 +34,7 @@
 
 SatQuery is a **conversational satellite intelligence platform** that lets users explore satellite imagery, ask natural-language questions, detect objects, compare imagery over time, perform land-use analysis, measure areas, and generate reports — all through an intuitive dark-first dashboard.
 
-> **Current status:** Frontend product template with mock analysis engine. AI, satellite APIs, authentication, and backend are not yet connected.
+> **Current status:** Live AI everywhere. The Query chat, Explore's "Ask about this area", and an assistant panel on every analysis page answer through **Google Gemini** (free tier), and analysis intents run the real backend satellite pipeline (NDVI / NDWI / land cover) with the model writing the reply prose grounded in the actual results. Without a Gemini key every surface degrades gracefully to the deterministic demo engine, so the app always runs. Authentication is not yet connected.
 
 ---
 
@@ -49,13 +49,13 @@ SatQuery is a **conversational satellite intelligence platform** that lets users
 - **Live cursor coordinates** display
 - **Area selection** with approximate km² calculation
 
-### 💬 Conversational Query Engine
-- Natural-language intent recognition (regex-based, 11 intent types)
-- **Mock analysis pipeline:** Query → Parser → Intent → Tool → Result → Response
+### 💬 Conversational Query Engine (live AI)
+- **ChatGPT-style answers from Gemini** — conversational questions are answered by the model with full conversation history; analysis questions run the real pipeline and Gemini writes the reply prose grounded in the structured result (no invented figures)
+- Natural-language intent recognition with district-level geocoding (11 intent types)
 - Recognized intents: object detection, water body detection, change detection, land cover classification, vegetation loss, deforestation, area/distance/perimeter measurement, crop health
-- Processing spinner with intent label feedback
-- Response attachments (image overlays, data cards) with confidence bars
-- Suggested follow-up actions
+- Real satellite analyses from the FastAPI backend — Sentinel-2 NDVI vegetation health, NDWI water mapping, delta-NDVI change detection and ML land-cover classification with raster overlays
+- Deterministic demo-engine fallback when no backend or Gemini key is configured
+- Processing spinner with intent label feedback, response attachments and suggested follow-ups
 
 ### 📊 Dashboard Analytics
 - Real-time stat cards (images analyzed, areas, objects, changes)
@@ -83,13 +83,17 @@ src/
 │   ├── layout/          # AppShell, Sidebar, Header
 │   ├── map/             # MapCanvas, MapControls, LayerPanel, DrawingToolbar,
 │   │                    # SearchBar, CoordinatesDisplay, SelectionOverlay
+│   ├── ai/              # AssistantPanel — embeddable ChatGPT-style panel
 │   └── ui/              # Badge, Card, StatCard, StatusBadge, ConfidenceBar
-├── pages/               # 11 route pages (Overview → NotFound)
+├── pages/               # 12 route pages (Overview → NotFound)
 ├── services/
-│   ├── queryParser.ts   # Intent recognition from natural language
+│   ├── queryParser.ts   # Intent recognition + district geocoding
 │   ├── analysisTools.ts # Tool registry (maps intents → tools)
 │   ├── analysisRunner.ts# Mock analysis implementations (9 tools)
-│   └── queryEngine.ts   # Pipeline orchestrator
+│   ├── queryEngine.ts   # Hybrid orchestrator (live AI + deterministic fallback)
+│   ├── aiClient.ts      # Gemini transport: backend /ai/chat → browser key
+│   ├── aiPrompts.ts     # Shared assistant system prompts
+│   └── pageAssistants.ts# Per-page grounded context for embedded assistants
 ├── hooks/
 │   └── useMapInteraction.ts  # Map state (cursor, draw tools, selection)
 ├── store/
@@ -127,7 +131,7 @@ Response Formatter → { markdown text, attachments, suggested actions }
 Chat UI (with processing indicator)
 ```
 
-**Swapping to real AI:** Replace `queryParser.ts` with an LLM API call, replace `analysisRunner.ts` with actual satellite analysis APIs. The `QueryIntent` and `AnalysisOutput` types stay the same — the rest of the pipeline doesn't change.
+**Where real AI lives now:** The engine is hybrid. Conversational questions go straight to Gemini (`src/services/aiClient.ts` → backend `POST /api/v1/ai/chat`); analysis intents run the backend tools and the model rewrites the summary prose grounded in the structured `AnalysisOutput`, so the `QueryIntent`/`AnalysisOutput` contract stays the single interface for both paths.
 
 ---
 
@@ -184,6 +188,25 @@ uvicorn backend.app.main:app --reload   # http://localhost:8000
 pytest backend/tests/               # API test suite
 python scripts/eval_vrsbench.py    # VRSBench evaluation harness
 ```
+
+### AI Assistant (Gemini)
+
+The ChatGPT-style answers everywhere are powered by the Gemini API. Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey), then either:
+
+```bash
+# backend (preferred — key stays server-side)
+GOOGLE_API_KEY="your_key_here"
+GEMINI_MODEL="gemini-2.5-flash"
+```
+
+or, for a browser-only demo with no backend running:
+
+```bash
+VITE_GEMINI_API_KEY="your_key_here"
+VITE_GEMINI_MODEL="gemini-2.5-flash"
+```
+
+The assistant checks the backend first, then the browser key. Without either it runs fully offline (page assistants answer from local data briefings; the query page uses the demo engine). Check **Settings → AI assistant** for live status.
 
 ### Environment variables
 
