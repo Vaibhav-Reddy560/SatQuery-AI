@@ -7,7 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgdal-dev \
     gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
