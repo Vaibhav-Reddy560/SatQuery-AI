@@ -51,15 +51,28 @@ Given a user's natural language query, classify it into EXACTLY ONE of these int
 - general_satellite_question: general questions about satellites/imagery, not a specific analysis task
 - unknown: doesn't fit any of the above
 
+Also extract any of these entities that are clearly present in the query:
+- location: a place name (or null)
+- from_year / to_year: years mentioned (4-digit, e.g. 2023). If only one year appears, put it in from_year and leave to_year null. If two, from_year is the earlier one.
+- targets: for detect_objects only — a list of object types being asked about, using these canonical names only: building, vehicle, ship, aircraft, solar_panel, road, bridge, tower, crane, runway
+- water_type: for find_water only — one of: lake, river, pond, reservoir, canal, wetland, flood, water (generic)
+- measurement_subtype: for measure_distance only — "perimeter" if the query asks about perimeter/boundary/coastline/shoreline, else null
+
 Respond with ONLY valid JSON, no other text, in this exact shape:
 {
   "intent": "one_of_the_values_above",
   "location": "place name or null",
+  "from_year": "year or null",
+  "to_year": "year or null",
+  "targets": ["target1", "target2"] or [],
+  "water_type": "water type or null",
+  "measurement_subtype": "perimeter or null",
   "confidence": 0.0 to 1.0,
   "reasoning": "one short sentence explaining your choice"
 }
 
 Always make your best guess — only use "unknown" if truly nothing fits.
+Only fill in entity fields that are actually relevant to the chosen intent; leave others null/empty.
 """
 
 
@@ -93,6 +106,27 @@ def classify_with_llm(text: str) -> IntentResult:
     location = parsed.get("location")
     if location:
         entities["location"] = location
+
+    from_year = parsed.get("from_year")
+    to_year = parsed.get("to_year")
+    if from_year:
+        entities["from_year"] = str(from_year)
+    if to_year:
+        entities["to_year"] = str(to_year)
+ 
+    targets = parsed.get("targets") or []
+    if targets and intent_str == "detect_objects":
+        entities["targets"] = targets
+ 
+    water_type = parsed.get("water_type")
+    if water_type and intent_str == "find_water":
+        entities["water_type"] = water_type
+ 
+    measurement_subtype = parsed.get("measurement_subtype")
+    if measurement_subtype and intent_str == "measure_distance":
+        entities["measurement_subtype"] = measurement_subtype
+    elif intent_str == "measure_area":
+        entities["measurement_subtype"] = "area"
 
     return IntentResult(
         intent=IntentType(intent_str),
