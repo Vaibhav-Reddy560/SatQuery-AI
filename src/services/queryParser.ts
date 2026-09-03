@@ -88,8 +88,8 @@ const RULES: IntentRule[] = [
   {
     intent: "estimate_crop_health",
     patterns: [
-      /\b(crop|wheat|rice|paddy|harvest|yield|agriculture|ndvi)\b.*\b(health|condition|status|yield)\b/i,
-      /\b(ndvi|vegetation\s+index)\b/i,
+      /\b(crop|wheat|rice|paddy|harvest|yield|agriculture|ndvi|wdvi)\b.*\b(health|condition|status|yield)\b/i,
+      /\b(ndvi|wdvi|vegetation\s+index)\b/i,
       /\b(crop\s+health|field\s+health)\b/i,
     ],
   },
@@ -98,31 +98,81 @@ const RULES: IntentRule[] = [
 // ── Location extraction ────────────────────────────────────
 
 const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number }> = {
-  mumbai:       { lat: 19.076,  lng: 72.8777 },
-  delhi:        { lat: 28.6139, lng: 77.209 },
-  bangalore:    { lat: 12.9716, lng: 77.5946 },
-  bengaluru:    { lat: 12.9716, lng: 77.5946 },
-  chennai:      { lat: 13.0827, lng: 80.2707 },
-  kolkata:      { lat: 22.5726, lng: 88.3639 },
-  hyderabad:    { lat: 17.385,  lng: 78.4867 },
-  pune:         { lat: 18.5204, lng: 73.8567 },
-  ahmedabad:    { lat: 23.0225, lng: 72.5714 },
-  jaipur:       { lat: 26.9124, lng: 75.7873 },
-  lucknow:      { lat: 26.8467, lng: 80.9462 },
-  chandigarh:   { lat: 30.7333, lng: 76.7794 },
-  ludhiana:     { lat: 30.901,  lng: 75.8573 },
-  kochi:        { lat: 9.9312,  lng: 76.2673 },
-  goa:          { lat: 15.2993, lng: 74.124 },
-  sundarbans:   { lat: 21.9497, lng: 89.1833 },
-  "sundarban":  { lat: 21.9497, lng: 89.1833 },
-  kerala:       { lat: 10.8505, lng: 76.2711 },
-  punjab:       { lat: 31.1471, lng: 75.3412 },
-  rajasthan:    { lat: 27.0238, lng: 74.2179 },
-  assam:        { lat: 26.2006, lng: 92.9376 },
-  odisha:       { lat: 20.9517, lng: 85.0985 },
-  "navi mumbai": { lat: 19.037, lng: 73.0297 },
-  indi:         { lat: 20.5937, lng: 78.9629 },
-  india:        { lat: 20.5937, lng: 78.9629 },
+  // ── Maharashtra ─────────────────────────────────────────────
+  mumbai:             { lat: 19.076,  lng: 72.8777 },
+  "navi mumbai":      { lat: 19.037,  lng: 73.0297 },
+  pune:               { lat: 18.5204, lng: 73.8567 },
+  nagpur:             { lat: 21.1458, lng: 79.0882 },
+  nashik:             { lat: 19.9975, lng: 73.7898 },
+  aurangabad:         { lat: 19.8762, lng: 75.3433 },
+  thane:              { lat: 19.2183, lng: 72.9781 },
+  maharashtra:        { lat: 19.7515, lng: 75.7139 },
+
+  // ── Rajasthan ────────────────────────────────────────────────
+  jaipur:             { lat: 26.9124, lng: 75.7873 },
+  jodhpur:            { lat: 26.2389, lng: 73.0243 },
+  udaipur:            { lat: 24.5854, lng: 73.7125 },
+  kota:               { lat: 25.2138, lng: 75.8648 },
+  bikaner:            { lat: 28.0229, lng: 73.3119 },
+  ajmer:              { lat: 26.4499, lng: 74.6399 },
+  "thar desert":      { lat: 27.0238, lng: 70.9000 },
+  rajasthan:          { lat: 27.0238, lng: 74.2179 },
+
+  // ── Karnataka ────────────────────────────────────────────────
+  bengaluru:          { lat: 12.9716, lng: 77.5946 },
+  bangalore:          { lat: 12.9716, lng: 77.5946 },
+  mysuru:             { lat: 12.2958, lng: 76.6394 },
+  mysore:             { lat: 12.2958, lng: 76.6394 },
+  hubli:              { lat: 15.3647, lng: 75.1240 },
+  mangaluru:          { lat: 12.9141, lng: 74.8560 },
+  belagavi:           { lat: 15.8497, lng: 74.4977 },
+  "western ghats":    { lat: 13.5000, lng: 75.5000 },
+  karnataka:          { lat: 15.3173, lng: 75.7139 },
+
+  // ── Kerala ──────────────────────────────────────────────────
+  thiruvananthapuram: { lat: 8.5241,  lng: 76.9366 },
+  trivandrum:         { lat: 8.5241,  lng: 76.9366 },
+  kochi:              { lat: 9.9312,  lng: 76.2673 },
+  kozhikode:          { lat: 11.2588, lng: 75.7804 },
+  calicut:            { lat: 11.2588, lng: 75.7804 },
+  thrissur:           { lat: 10.5276, lng: 76.2144 },
+  alleppey:           { lat: 9.4981,  lng: 76.3388 },
+  alappuzha:          { lat: 9.4981,  lng: 76.3388 },
+  "wayanad":          { lat: 11.6030, lng: 76.0834 },
+  kerala:             { lat: 10.8505, lng: 76.2711 },
+
+  // ── Punjab ──────────────────────────────────────────────────
+  ludhiana:           { lat: 30.901,  lng: 75.8573 },
+  amritsar:           { lat: 31.6340, lng: 74.8723 },
+  jalandhar:          { lat: 31.3260, lng: 75.5762 },
+  patiala:            { lat: 30.3398, lng: 76.3869 },
+  chandigarh:         { lat: 30.7333, lng: 76.7794 },
+  "wheat belt":       { lat: 30.9010, lng: 75.8573 },
+  punjab:             { lat: 31.1471, lng: 75.3412 },
+
+  // ── West Bengal ─────────────────────────────────────────────
+  kolkata:            { lat: 22.5726, lng: 88.3639 },
+  calcutta:           { lat: 22.5726, lng: 88.3639 },
+  sundarbans:         { lat: 21.9497, lng: 89.1833 },
+  "sundarban":        { lat: 21.9497, lng: 89.1833 },
+  siliguri:           { lat: 26.7271, lng: 88.3953 },
+  howrah:             { lat: 22.5958, lng: 88.2636 },
+  darjeeling:         { lat: 27.0410, lng: 88.2663 },
+  "west bengal":      { lat: 22.9868, lng: 87.8550 },
+
+  // ── Other major cities (pre-existing) ────────────────────────
+  delhi:              { lat: 28.6139, lng: 77.2090 },
+  hyderabad:          { lat: 17.385,  lng: 78.4867 },
+  ahmedabad:          { lat: 23.0225, lng: 72.5714 },
+  lucknow:            { lat: 26.8467, lng: 80.9462 },
+  goa:                { lat: 15.2993, lng: 74.1240 },
+  assam:              { lat: 26.2006, lng: 92.9376 },
+  odisha:             { lat: 20.9517, lng: 85.0985 },
+  chennai:            { lat: 13.0827, lng: 80.2707 },
+
+  // ── Generic India fallback ───────────────────────────────────
+  indi:               { lat: 20.5937, lng: 78.9629 },
+  india:              { lat: 20.5937, lng: 78.9629 },
 };
 
 function extractLocation(text: string): string | undefined {
