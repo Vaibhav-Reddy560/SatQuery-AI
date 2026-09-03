@@ -20,9 +20,19 @@ import type { Query as QueryT, QueryResponse } from "@/types/query";
 
 const PROMPTS = [
   "Find all water bodies near Mumbai",
-  "What changed here since 2024?",
-  "Classify land cover in Punjab",
+  "Detect mangrove loss in Navi Mumbai",
   "Detect solar farms in Rajasthan",
+  "Sand dune migration in Thar Desert",
+  "Classify land cover in Karnataka Western Ghats",
+  "Detect deforestation near Bengaluru",
+  "Flood extent in Alleppey, Kerala",
+  "Landslide risk zones in Wayanad Kerala",
+  "Classify land cover in Punjab",
+  "Crop health assessment in Punjab wheat belt",
+  "Mangrove health in Sundarbans, West Bengal",
+  "What changed here since 2024?",
+  "What areas show the most urban expansion?",
+  "Measure the area of this lake",
 ];
 
 interface Entry extends QueryMessage {

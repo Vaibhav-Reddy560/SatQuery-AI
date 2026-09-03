@@ -178,9 +178,12 @@ import { sendQueryToBackend } from "./apiClient";
  * with fallback to the local simulated pipeline.
  */
 export async function processQueryAsync(userQuery: Query): Promise<QueryResponse> {
-  // Attempt backend API call first
-  const centre: [number, number] = [78.9629, 20.5937];
-  const location = "Selected Region";
+  // Parse intent first so we can extract location/centre
+  const intent = parseQuery(userQuery.raw);
+
+  // Use the resolved centre from the parser (falls back to India centre if no location found)
+  const centre: [number, number] = [intent.centre.lng, intent.centre.lat];
+  const location = intent.location ?? "Selected Region";
   
   const backendResponse = await sendQueryToBackend(userQuery.id, userQuery.raw, centre, location);
   if (backendResponse) {
