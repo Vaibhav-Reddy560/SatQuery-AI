@@ -1,10 +1,8 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&height=230&color=0:0D1220,35:212C44,70:354460,100:3D7FFF&text=SatQuery%20AI&fontColor=F2F2F4&fontSize=60&fontAlignY=34&desc=Vision-Language%20Satellite%20Intelligence&descAlignY=54&descSize=18&descAlign=50&animation=fadeIn&section=header" width="100%" alt="SatQuery AI" />
+<img src="docs/readme/banner-hero.svg" width="100%" alt="SatQuery AI — Vision-Language Satellite Intelligence" />
 
-<img src="public/brand/satquery-icon-512.png" width="104" alt="SatQuery AI logo" />
-
-<br /><br />
+<br />
 
 [![Typing SVG](https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=22&duration=2600&pause=900&color=3D7FFF&center=true&vCenter=true&width=760&height=50&lines=Ask+Earth+Anything.;Draw+an+area.+Query+only+that.;Detection+%C2%B7+Change+%C2%B7+Land+cover+%C2%B7+Measurement.;SIH+2026+-+Problem+Statement+SIH26167.)](https://github.com/Vaibhav-Reddy560/SatQuery-AI)
 
@@ -297,7 +295,7 @@ Built for **Smart India Hackathon 2026** by:
 <br />
 
 <div align="center">
-<img src="https://capsule-render.vercel.app/api?type=waving&height=120&color=0:3D7FFF,50:354460,100:0D1220&section=footer" width="100%" alt="" />
+<img src="docs/readme/banner-footer.svg" width="100%" alt="" />
 
 *SatQuery AI — making satellite intelligence accessible through conversation.*
 
