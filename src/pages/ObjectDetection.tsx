@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { Download, RefreshCw, Upload } from "lucide-react";
 import { Page } from "@/components/layout/Page";
+import { AssistantPanel } from "@/components/ai/AssistantPanel";
 import { Button } from "@/components/ui/Button";
+import { objectDetectionAssistant } from "@/services/pageAssistants";
 import { Num } from "@/components/ui/Num";
 import { ImageViewport, type Box } from "@/components/ui/ImageViewport";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
@@ -198,6 +200,8 @@ export default function ObjectDetection() {
           </div>
         </div>
       </div>
+
+      <AssistantPanel {...objectDetectionAssistant} />
     </Page>
   );
 }

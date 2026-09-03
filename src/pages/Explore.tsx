@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { useAppStore } from "@/store/useAppStore";
 import {
   Send,
   ChevronRight,
@@ -37,6 +39,8 @@ const suggestedQueries = [
 interface InspectorPanelsProps {
   queryInput: string;
   onQueryInputChange: (v: string) => void;
+  /** Send the current question — carries the drawn AOI into the Query chat. */
+  onSubmitQuery: () => void;
   selectedArea: SelectedArea | null;
   isDrawing: boolean;
   viewMode: ViewMode;
@@ -56,6 +60,7 @@ interface InspectorPanelsProps {
 function InspectorPanels({
   queryInput,
   onQueryInputChange,
+  onSubmitQuery,
   selectedArea,
   isDrawing,
   viewMode,
@@ -75,11 +80,25 @@ function InspectorPanels({
           <Input
             value={queryInput}
             onChange={(e) => onQueryInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                onSubmitQuery();
+              }
+            }}
             placeholder="Ask a question…"
             aria-label="Ask about the selected area"
             className="h-10 bg-bg-primary shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)]"
           />
-          <Button variant="primary" size="md" iconOnly aria-label="Send query">
+          <Button
+            variant="primary"
+            size="md"
+            iconOnly
+            disabled={!queryInput.trim()}
+            onClick={onSubmitQuery}
+            aria-label="Ask and open in Query chat"
+            title="Ask SatQuery (opens the Query chat)"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </div>
@@ -260,6 +279,26 @@ export default function Explore() {
 
   const interaction = useMapInteraction();
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const storeSetQueryInput = useAppStore((s) => s.setQueryInput);
+  const storeSetQueryAoi = useAppStore((s) => s.setQueryAoi);
+  const storeSetQueryAoiCentre = useAppStore((s) => s.setQueryAoiCentre);
+
+  // "Ask about this area" → carries the question + drawn AOI summary into the
+  // Query chat, which answers with the live AI (same funnel as Landing/Help).
+  const handleSubmitQuery = useCallback(() => {
+    const text = queryInput.trim();
+    if (!text) return;
+    const area = interaction.selectedArea;
+    if (area) {
+      storeSetQueryAoi(
+        `Selected AOI drawn on the map: ${area.areaKm2.toFixed(2)} km², centred at ${area.center.lat.toFixed(3)}°, ${area.center.lng.toFixed(3)}° (${area.coordinates.length} vertices). Questions about this area refer to that selection.`
+      );
+      storeSetQueryAoiCentre(area.center);
+    }
+    storeSetQueryInput(text);
+    navigate("/query");
+  }, [queryInput, interaction.selectedArea, navigate, storeSetQueryInput, storeSetQueryAoi, storeSetQueryAoiCentre]);
 
   // Points being drawn in real-time
   const [drawingPoints, setDrawingPoints] = useState<CursorCoordinates[]>([]);
@@ -460,6 +499,7 @@ export default function Explore() {
         <InspectorPanels
           queryInput={queryInput}
           onQueryInputChange={setQueryInput}
+          onSubmitQuery={handleSubmitQuery}
           selectedArea={selectedArea}
           isDrawing={interaction.isDrawing}
           viewMode={viewMode}
@@ -472,6 +512,7 @@ export default function Explore() {
       <InspectorSheet
         queryInput={queryInput}
         onQueryInputChange={setQueryInput}
+        onSubmitQuery={handleSubmitQuery}
         selectedArea={selectedArea}
         isDrawing={interaction.isDrawing}
         viewMode={viewMode}

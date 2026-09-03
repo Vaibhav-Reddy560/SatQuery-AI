@@ -64,6 +64,12 @@ export const ANALYSIS_TOOLS: AnalysisTool[] = [
     description: "Estimates crop health using NDVI and multi-spectral analysis",
     supportedIntents: ["estimate_crop_health"],
   },
+  {
+    id: "conversational_assistant",
+    name: "AI Assistant (Gemini)",
+    description: "Direct conversational answer from the live language model — no analysis tool runs",
+    supportedIntents: ["general_question"],
+  },
 ];
 
 // ── Lookup helpers ─────────────────────────────────────────

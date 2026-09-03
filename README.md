@@ -22,7 +22,7 @@ Built for **SIH 2026** — Smart India Hackathon
 
 SatQuery is a **conversational satellite intelligence platform** that lets users explore satellite imagery, ask natural-language questions, detect objects, compare imagery over time, perform land-use analysis, measure areas, and generate reports — all through an intuitive dark-first dashboard.
 
-> **Current status:** Frontend product template with mock analysis engine. AI, satellite APIs, authentication, and backend are not yet connected.
+> **Current status:** Live satellite-analysis backend (real NDVI / NDWI / land-cover over Sentinel-2 imagery) wired into the frontend, plus a ChatGPT-style conversational assistant powered by **Google Gemini** (optional free API key). When no key is configured every AI surface degrades gracefully to the deterministic demo engine, so the app always runs. Authentication is not yet connected.
 
 ---
 
@@ -115,7 +115,7 @@ Response Formatter → { markdown text, attachments, suggested actions }
 Chat UI (with processing indicator)
 ```
 
-**Swapping to real AI:** Replace `queryParser.ts` with an LLM API call, replace `analysisRunner.ts` with actual satellite analysis APIs. The `QueryIntent` and `AnalysisOutput` types stay the same — the rest of the pipeline doesn't change.
+**Where real AI lives now:** The pipeline is hybrid. Conversational questions are answered directly by Gemini (`src/services/aiClient.ts` → backend `POST /api/v1/ai/chat`), and analysis intents run the real backend tools with the model rewriting the prose — grounded in the structured result so it never invents figures. When Gemini is unconfigured or unreachable, the deterministic parser/runner below is the fallback, so the `QueryIntent`/`AnalysisOutput` types stay the single contract for both paths.
 
 ---
 
@@ -154,6 +154,25 @@ The app runs at **http://localhost:5173**
 ---
 
 ## ⚙️ Configuration
+
+### AI Assistant (Google Gemini)
+
+The ChatGPT-style answers on the Query page, Explore's "Ask about this area", and the assistant panel on every analysis page are powered by the Gemini API.
+
+1. Get a free API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+2. Preferred — **backend** (key stays server-side):
+   ```bash
+   # backend/.env (or repo-root .env — the FastAPI settings loader picks it up)
+   GOOGLE_API_KEY="your_key_here"
+   GEMINI_MODEL="gemini-2.5-flash"
+   ```
+3. Or browser-only demo — **frontend** `.env` (no backend needed, dev only):
+   ```bash
+   VITE_GEMINI_API_KEY="your_key_here"
+   VITE_GEMINI_MODEL="gemini-2.5-flash"
+   ```
+
+The assistant checks the backend first, then the browser key. Without either, the app runs fully offline: page assistants answer from local data briefings and the query page falls back to the deterministic demo engine. Check Settings → **AI assistant** for live status.
 
 ### Map Tile Sources
 

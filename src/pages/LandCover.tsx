@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { Page } from "@/components/layout/Page";
+import { AssistantPanel } from "@/components/ai/AssistantPanel";
 import { Button } from "@/components/ui/Button";
+import { landCoverAssistant } from "@/services/pageAssistants";
 import { Num, Km2 } from "@/components/ui/Num";
 import { ImageViewport } from "@/components/ui/ImageViewport";
 import { Readout } from "@/components/ui/Readout";
@@ -193,6 +195,8 @@ export default function LandCover() {
           </div>
         </div>
       </div>
+
+      <AssistantPanel {...landCoverAssistant} />
     </Page>
   );
 }

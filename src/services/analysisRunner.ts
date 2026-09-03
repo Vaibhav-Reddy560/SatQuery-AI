@@ -398,6 +398,9 @@ export function runAnalysis(
     vegetation_analyser: () => runVegetationLoss(intent),
     crop_health_analyser:() => runCropHealth(intent),
     general_question:    () => runGeneralQuestion(intent),
+    // The mock fallback for conversational questions (when no live AI is
+    // reachable) answers from the deterministic detection template.
+    conversational_assistant: () => runGeneralQuestion(intent),
   };
 
   const runner = dispatch[toolId] ?? dispatch.general_question;

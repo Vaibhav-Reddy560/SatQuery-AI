@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     BIGEARTHNET_DIR: str = "./data/bigearthnet"
     VRSBENCH_DIR: str = "./data/vrsbench"
 
+    # Gemini (Google AI) assistant — optional. When GOOGLE_API_KEY is unset
+    # every AI surface degrades gracefully to the deterministic engine and
+    # the app stays fully usable offline. Key stays server-side.
+    GOOGLE_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MAX_OUTPUT_TOKENS: int = 1024
+    GEMINI_TEMPERATURE: float = 0.6
+
     # Phase 2 real NDVI / vegetation analysis
     # 'sample'    = bundled real Sentinel-2 cutout (offline, deterministic)
     # 'sentinel2' = live Earth Search STAC COG fetch (free, no key, needs network)

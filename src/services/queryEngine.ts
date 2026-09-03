@@ -3,9 +3,20 @@
  *
  *   User Query → Parser → Intent → Tool Selection → Analysis Runner → Result → Response
  *
- * This module is the single public entry point. Everything downstream
- * is replaceable (swap mock parser for LLM, swap mock runner for real APIs)
- * without touching the Query page.
+ * Since the "AI is live" work, the engine is hybrid:
+ *
+ * - **Analysis intents** (detect water, classify land cover, …) run the real
+ *   pipeline (backend satellite algorithms when reachable, else the local
+ *   mock engine) so the typed result, overlays and panels stay grounded.
+ *   When the backend produced a live result, the live language model then
+ *   *writes the prose* — with the structured result as grounding context —
+ *   so the chat reply reads naturally without inventing numbers.
+ * - **General/conversational questions** are answered directly by the live
+ *   language model with full conversation history, ChatGPT-style. If no AI
+ *   is reachable they degrade to the deterministic engine.
+ *
+ * Nothing here depends on the model being configured: every path returns a
+ * valid QueryResponse, exactly as before.
  */
 
 import type {
@@ -18,11 +29,38 @@ import type {
   LandCoverResult,
   MeasurementResult,
 } from "@/types/query";
-import { parseQuery, intentLabel } from "./queryParser";
+import type { GeoCoordinates } from "@/types";
+import { parseQuery } from "./queryParser";
 import { findToolForIntent } from "./analysisTools";
 import { runAnalysis } from "./analysisRunner";
+import { sendQueryToBackend } from "./apiClient";
+import { chatWithAi, type AiTurn } from "./aiClient";
+import { SATQUERY_SYSTEM_PROMPT } from "./aiPrompts";
 
-// ── Response formatters ────────────────────────────────────
+// ── Process options ───────────────────────────────────────
+
+export interface ProcessQueryOptions {
+  /** Human-readable summary of the user's workspace/AOI (drawn area…). */
+  aoi?: string;
+  /** Centre of the drawn AOI — used when the query text has no location. */
+  aoiCentre?: GeoCoordinates;
+  /** Location name for the AOI (shown in results + sent to the backend). */
+  aoiName?: string;
+  /** Prior conversation turns (oldest first), for follow-up coherence. */
+  history?: AiTurn[];
+}
+
+/** System prompt used to rewrite analysis summaries into chat prose. */
+const ANALYSIS_WRITER_PROMPT = `You are the response writer for SatQuery, a satellite-intelligence platform. A structured satellite analysis just ran; its result JSON is supplied as grounded context.
+
+Write the chat reply the user sees. Rules:
+- Lead with the single most important finding, then the supporting detail.
+- ONLY cite figures that appear in the grounded result JSON. Never round or extrapolate numbers that aren't there; if a requested figure is absent, say it isn't available.
+- Use light markdown: **bold** for key numbers, bullet lists for enumerations.
+- Keep it to roughly 6–12 lines; finish with one concrete next step or question.
+- Stay factual and neutral — this is an analysis report, not marketing.`;
+
+// ── Response formatters (local mock engine) ───────────────
 
 function formatDetectionResponse(r: DetectionResult): string {
   const cats = [...new Set(r.features.map((f) => f.category))];
@@ -77,7 +115,7 @@ function formatMeasurementResponse(r: MeasurementResult): string {
   );
 }
 
-function formatResponse(result: AnalysisOutput, intent: QueryIntent): string {
+function formatResponse(result: AnalysisOutput): string {
   switch (result.kind) {
     case "detection":
       return formatDetectionResponse(result);
@@ -173,17 +211,94 @@ function getSuggestedActions(intent: QueryIntent): string[] {
   return [...(extras[intent.type] ?? []), ...base];
 }
 
+// ── Live-AI helpers ───────────────────────────────────────
+
+/**
+ * Compact, lossy summary of an AnalysisOutput used ONLY as grounding for the
+ * prose writer. Explicitly excludes imagery metadata and raster overlays
+ * (which may embed large data URLs) so nothing huge is shipped to the model.
+ */
+function summarizeResultForAi(result: AnalysisOutput): string {
+  const head = `kind=${result.kind}; tool=${result.toolId}; location=${result.location}; ` +
+    `confidence=${result.confidence}${result.mode ? `; mode=${result.mode}` : ""}` +
+    (result.model ? `; model=${result.model}${result.modelVersion ? ` (${result.modelVersion})` : ""}` : "");
+  switch (result.kind) {
+    case "detection":
+      return `${head}; total_features=${result.totalFeatures}; features=${JSON.stringify(
+        result.features.map((f) => ({ label: f.label, category: f.category, confidence: f.confidence, area_km2: f.areaKm2 }))
+      )}`;
+    case "change":
+      return `${head}; before=${result.beforeDate}; after=${result.afterDate}; ` +
+        `total_area_changed_km2=${result.totalAreaChangedKm2}; changes=${JSON.stringify(
+          result.changes.map((c) => ({ type: c.type, description: c.description, area_km2: c.areaKm2, confidence: c.confidence }))
+        )}${result.changeStats ? `; stats=${JSON.stringify(result.changeStats)}` : ""}`;
+    case "land_cover":
+      return `${head}; total_area_km2=${result.totalAreaKm2}; classes=${JSON.stringify(
+        result.classes.map((c) => ({ name: c.name, percentage: c.percentage, area_km2: c.areaKm2 }))
+      )}`;
+    case "vegetation":
+      return `${head}; total_area_km2=${result.totalAreaKm2}; vegetation_lost_km2=${result.vegetationLostKm2}; ` +
+        `zones=${JSON.stringify(result.zones)}` +
+        (result.ndviStats ? `; ndvi_stats=${JSON.stringify(result.ndviStats)}` : "");
+    case "water":
+      return `${head}; water_area_km2=${result.waterAreaKm2}; total_area_km2=${result.totalAreaKm2}; ` +
+        `threshold=${result.threshold}` +
+        (result.ndwiStats ? `; ndwi_stats=${JSON.stringify(result.ndwiStats)}` : "");
+    case "measurement":
+      return `${head}; measurement_type=${result.measurementType}; value=${result.value}; unit=${result.unit}; points=${result.points.length}`;
+  }
+}
+
+/** Wrap a pure conversational model reply in the typed QueryResponse shape. */
+function buildConversationalResponse(
+  userQuery: Query,
+  intent: QueryIntent,
+  text: string,
+  model: string
+): QueryResponse {
+  const result: DetectionResult = {
+    kind: "detection",
+    toolId: "conversational_assistant",
+    queryId: userQuery.id,
+    confidence: intent.confidence,
+    location: intent.location ?? "Conversation",
+    centre: intent.centre,
+    features: [],
+    totalFeatures: 0,
+    summaryText: text,
+    mode: "live",
+    model,
+    modelKind: undefined,
+  };
+  return {
+    queryId: userQuery.id,
+    intent,
+    result,
+    responseText: text,
+    attachments: [],
+    suggestedActions: ["Ask a follow-up", "Try an analysis: e.g. \u201Cdetect water bodies near Mumbai\u201D"],
+    processingTimeMs: 400,
+    trace: [
+      "No analysis tool needed — routed to the conversational model",
+      `Answered by ${model} (live)`,
+    ],
+  };
+}
+
 // ── Public API ─────────────────────────────────────────────
 
 /**
- * Process a user query through the full pipeline.
- * Returns a QueryResponse ready for the chat UI.
+ * Process a user query through the (local, deterministic) mock pipeline.
+ * Returns a QueryResponse ready for the chat UI. `opts` may override the
+ * centre/location the parser found (e.g. from a drawn AOI).
  */
-export function processQuery(userQuery: Query): QueryResponse {
+export function processQuery(userQuery: Query, opts: ProcessQueryOptions = {}): QueryResponse {
   const startTime = performance.now();
 
   // 1. Parse
   const intent = parseQuery(userQuery.raw);
+  if (opts.aoiCentre) intent.centre = opts.aoiCentre;
+  if (opts.aoiName && !intent.location) intent.location = opts.aoiName;
 
   // 2. Select tool
   const tool = findToolForIntent(intent.type);
@@ -195,7 +310,7 @@ export function processQuery(userQuery: Query): QueryResponse {
   result.queryId = userQuery.id;
 
   // 5. Format response
-  const responseText = formatResponse(result, intent);
+  const responseText = formatResponse(result);
   const attachments = getAttachments(result);
   const suggestedActions = getSuggestedActions(intent);
 
@@ -212,29 +327,85 @@ export function processQuery(userQuery: Query): QueryResponse {
   };
 }
 
-import { sendQueryToBackend } from "./apiClient";
-
 /**
- * Process query asynchronously via Backend FastAPI VLM service if available,
- * with fallback to the local simulated pipeline.
+ * Process a query with the live AI available:
+ *
+ * 1. Conversational questions → answered by the LLM with history + AOI
+ *    context; falls back to the mock engine when no AI is reachable.
+ * 2. Analysis questions → real backend analysis (or mock fallback); when the
+ *    backend produced the result, the LLM rewrites the prose grounded in the
+ *    structured result JSON.
  */
-export async function processQueryAsync(userQuery: Query): Promise<QueryResponse> {
-  // Attempt backend API call first. Parse the text for a location/centre so
-  // the backend receives real context instead of a hardcoded India default.
+export async function processQueryAsync(
+  userQuery: Query,
+  opts: ProcessQueryOptions = {}
+): Promise<QueryResponse> {
   const parsed = parseQuery(userQuery.raw);
-  const centre: [number, number] = [parsed.centre.lng, parsed.centre.lat];
-  const location = parsed.location ?? "Selected AOI";
+  const isAnalysis = parsed.type !== "general_question";
 
-  const backendResponse = await sendQueryToBackend(userQuery.id, userQuery.raw, centre, location);
-  if (backendResponse) {
-    return backendResponse;
+  const aiMessages: AiTurn[] = [...(opts.history ?? []), { role: "user", content: userQuery.raw }];
+  const aoiNote = opts.aoi ?? "";
+  const aoiContext = [aoiNote, parsed.location ? `Mentioned location: ${parsed.location}` : ""]
+    .filter(Boolean)
+    .join("\n");
+
+  // ── 1. Pure conversation → live model first ─────────────
+  if (!isAnalysis) {
+    const ai = await chatWithAi({
+      messages: aiMessages,
+      systemPrompt: SATQUERY_SYSTEM_PROMPT,
+      context: aoiContext || undefined,
+      maxTokens: 1024,
+    });
+    if (ai) {
+      return buildConversationalResponse(userQuery, parsed, ai.reply, ai.model);
+    }
+    // Offline: local deterministic pipeline (same cadence as before).
+    return new Promise((resolve) => {
+      const delay = 400 + Math.random() * 600;
+      setTimeout(() => resolve(processQuery(userQuery, opts)), delay);
+    });
   }
 
-  // Local fallback execution
-  const delay = 400 + Math.random() * 600;
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(processQuery(userQuery)), delay);
-  });
+  // ── 2. Analysis intent → backend (real) or mock ─────────
+  const centre: [number, number] = opts.aoiCentre
+    ? [opts.aoiCentre.lng, opts.aoiCentre.lat]
+    : [parsed.centre.lng, parsed.centre.lat];
+  const location = parsed.location ?? opts.aoiName ?? "Selected AOI";
+
+  let response: QueryResponse | null = null;
+  let liveResult = false;
+  try {
+    response = await sendQueryToBackend(userQuery.id, userQuery.raw, centre, location);
+    liveResult = response !== null;
+  } catch {
+    response = null;
+  }
+
+  if (!response) {
+    const delay = 400 + Math.random() * 600;
+    response = await new Promise<QueryResponse>((resolve) => {
+      setTimeout(() => resolve(processQuery(userQuery, opts)), delay);
+    });
+  }
+
+  // ── 3. Live-model prose over REAL backend results only —─
+  // (Mock fallback results keep their honest, deterministic summaries.)
+  if (liveResult) {
+    const ai = await chatWithAi({
+      messages: aiMessages,
+      systemPrompt: ANALYSIS_WRITER_PROMPT,
+      context: `${summarizeResultForAi(response.result)}\n${aoiContext}`.trim(),
+      maxTokens: 700,
+    });
+    if (ai) {
+      response.responseText = ai.reply;
+      response.trace = [
+        ...(response.trace ?? []),
+        `Answer written by live AI (${ai.model}), grounded in the structured ${response.result.kind} result`,
+      ];
+    }
+  }
+
+  return response;
 }
-
-

@@ -55,7 +55,9 @@ export type AnalysisToolId =
   | "distance_measurer"
   | "perimeter_measurer"
   | "vegetation_analyser"
-  | "crop_health_analyser";
+  | "crop_health_analyser"
+  /** Pure conversational reply from the live language model — no analysis tool ran. */
+  | "conversational_assistant";
 
 export interface AnalysisTool {
   id: AnalysisToolId;

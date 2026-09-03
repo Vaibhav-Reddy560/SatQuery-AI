@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Ruler, Square, Spline, Download, Trash2, MapPin, Clock } from "lucide-react";
 import { Page } from "@/components/layout/Page";
+import { AssistantPanel } from "@/components/ai/AssistantPanel";
 import { Button } from "@/components/ui/Button";
+import { measurementsAssistant } from "@/services/pageAssistants";
 import { Num } from "@/components/ui/Num";
 import { ImageViewport } from "@/components/ui/ImageViewport";
 import { measurements } from "@/data/mockData";
@@ -206,6 +208,8 @@ export default function Measurements() {
           </div>
         </div>
       </section>
+
+      <AssistantPanel {...measurementsAssistant} />
     </Page>
   );
 }

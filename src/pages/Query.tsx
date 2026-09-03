@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowUp, Copy, ThumbsDown, ThumbsUp, Image as ImageIcon, Map as MapIcon, BarChart3 } from "lucide-react";
+import { ArrowUp, Copy, ThumbsDown, ThumbsUp, Image as ImageIcon, Map as MapIcon, BarChart3, MapPin, X } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { Markdown } from "@/components/query/Markdown";
 import { AgentTrace } from "@/components/query/AgentTrace";
@@ -31,6 +31,8 @@ const PROMPTS = [
 
 interface Entry extends QueryMessage {
   response?: QueryResponse;
+  /** True for the pre-seeded demo history shown on first mount. */
+  seeded?: boolean;
   /** Set only on entries created by `send()` in this session — gates the
       word-by-word reveal in `AssistantContent` so replaying seeded mock
       history never re-types itself out on mount. */
@@ -252,21 +254,37 @@ function Thinking({ intent }: { intent?: string }) {
 }
 
 export default function Query() {
-  const { queryInput, setQueryInput } = useAppStore();
-  const [entries, setEntries] = useState<Entry[]>(queryMessages);
+  const { queryInput, queryAoi, queryAoiCentre, setQueryInput, setQueryAoi, setQueryAoiCentre } =
+    useAppStore();
+  const [entries, setEntries] = useState<Entry[]>(() =>
+    queryMessages.map((m) => ({ ...m, seeded: true }))
+  );
   const [input, setInput] = useState("");
+  const [areaContext, setAreaContext] = useState("");
+  const [aoiCentre, setAoiCentre] = useState<{ lat: number; lng: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [intent, setIntent] = useState<string | undefined>();
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  // Pick up a prompt handed over from the landing page, Help, or ⌘K.
+  // Pick up a prompt (+ optional map AOI) handed over from the landing page,
+  // Explore's "Ask about this area", Help, or ⌘K.
   useEffect(() => {
-    if (!queryInput) return;
-    setInput(queryInput);
-    setQueryInput("");
+    if (!queryInput && !queryAoi && !queryAoiCentre) return;
+    if (queryInput) {
+      setInput(queryInput);
+      setQueryInput("");
+    }
+    if (queryAoi) {
+      setAreaContext(queryAoi);
+      setQueryAoi("");
+    }
+    if (queryAoiCentre) {
+      setAoiCentre(queryAoiCentre);
+      setQueryAoiCentre(null);
+    }
     requestAnimationFrame(() => taRef.current?.focus());
-  }, [queryInput, setQueryInput]);
+  }, [queryInput, queryAoi, queryAoiCentre, setQueryInput, setQueryAoi, setQueryAoiCentre]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: scrollBehavior() });
@@ -287,8 +305,17 @@ export default function Query() {
 
       const q: QueryT = { id: `q-${Date.now()}`, raw: text, timestamp: new Date().toISOString() };
 
+      // Session turns only (seeded demo history is not sent to the model).
+      const history = entries
+        .filter((e) => !e.seeded)
+        .map((e) => ({ role: e.role, content: e.content }));
+
       try {
-        const res = await processQueryAsync(q);
+        const res = await processQueryAsync(q, {
+          history,
+          aoi: areaContext || undefined,
+          aoiCentre: aoiCentre ?? undefined,
+        });
         setIntent(intentLabel(res.intent.type));
         await new Promise((r) => setTimeout(r, 260));
         setEntries((p) => [
@@ -320,7 +347,7 @@ export default function Query() {
         setIntent(undefined);
       }
     },
-    [input, busy]
+    [input, busy, entries, areaContext, aoiCentre]
   );
 
   const empty = entries.length === 0;
@@ -384,6 +411,24 @@ export default function Query() {
       {/* ── Composer ── */}
       <div className="shrink-0 px-8 pb-7 pt-3">
         <div className="mx-auto max-w-[47.5rem]">
+          {areaContext && (
+            <div className="mb-2 flex items-center gap-2 rounded-md bg-bg-tertiary/70 px-3 py-1.5 font-mono text-mono-sm text-phosphor">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate" title={areaContext}>
+                {areaContext}
+              </span>
+              <button
+                onClick={() => {
+                  setAreaContext("");
+                  setAoiCentre(null);
+                }}
+                aria-label="Clear area context"
+                className="shrink-0 rounded p-0.5 text-phosphor-dim transition-colors duration-150 hover:text-phosphor"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           <div className="crt relative flex items-end gap-3 overflow-hidden rounded-xl bg-bg-elevated/80 p-2.5 pl-5 backdrop-blur-xl transition-shadow duration-200 focus-within:shadow-[0_0_0_1px_var(--color-border-glow),0_0_38px_-8px_rgba(111,184,255,0.35)]">
             {busy && <BorderBeam size={90} duration={3} borderWidth={1.5} />}
             <textarea
@@ -421,7 +466,8 @@ export default function Query() {
             </button>
           </div>
           <p className="mt-3 text-center text-[0.6875rem] text-text-faint">
-            Results are generated from mock analysis. Verify critical findings against ground truth.
+            Conversational answers come from a live language model when configured; analysis results
+            fall back to simulated demo data otherwise. Verify critical findings against ground truth.
           </p>
         </div>
       </div>

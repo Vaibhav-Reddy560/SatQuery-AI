@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -99,6 +99,31 @@ class QueryResponse(BaseModel):
     analysis_payload: Dict[str, Any]
     latency_ms: Optional[float] = None
     trace: Optional[List[str]] = Field(default=None, description="Agent execution trace steps")
+
+# AI Assistant (Gemini chat) Schemas
+class ChatTurn(BaseModel):
+    """One conversational turn. assistant turns are the assistant's own prior replies."""
+    role: Literal["user", "assistant"] = "user"
+    content: str
+
+class ChatRequest(BaseModel):
+    """A ChatGPT-style request against the SatQuery assistant."""
+    messages: List[ChatTurn] = Field(..., description="Conversation history + latest user turn, oldest first")
+    system_prompt: Optional[str] = Field(default=None, description="Role/behaviour instructions for this call")
+    context: Optional[str] = Field(default=None, description="Optional grounded data (markdown/JSON) the assistant may cite")
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
+    max_tokens: Optional[int] = Field(default=None, ge=16, le=4096)
+
+class ChatResponse(BaseModel):
+    reply: str
+    model: str
+    provider: Literal["gemini"] = "gemini"
+    latency_ms: Optional[float] = None
+
+class AiStatusOut(BaseModel):
+    provider: Literal["gemini", "offline"]
+    model: str
+    configured: bool
 
 # Analysis Specs
 class DetectionFeature(BaseModel):

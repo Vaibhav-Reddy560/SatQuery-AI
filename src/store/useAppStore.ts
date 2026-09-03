@@ -14,9 +14,16 @@ interface AppState {
   setMapCenter: (center: { lat: number; lng: number }) => void;
   setMapZoom: (zoom: number) => void;
 
-  // Query — carries a prompt from the landing page into /query
+  // Query — carries a prompt (+ optional AOI context) from other surfaces
+  // (Landing, Help, Explore's "Ask about this area") into /query
   queryInput: string;
   setQueryInput: (input: string) => void;
+  /** Human-readable summary of the map area questions refer to. */
+  queryAoi: string;
+  setQueryAoi: (aoi: string) => void;
+  /** Centre of the drawn AOI so analyses target the actual selection. */
+  queryAoiCentre: { lat: number; lng: number } | null;
+  setQueryAoiCentre: (centre: { lat: number; lng: number } | null) => void;
 
   // Command palette
   commandOpen: boolean;
@@ -36,6 +43,12 @@ export const useAppStore = create<AppState>((set) => ({
 
   queryInput: "",
   setQueryInput: (input) => set({ queryInput: input }),
+
+  queryAoi: "",
+  setQueryAoi: (aoi) => set({ queryAoi: aoi }),
+
+  queryAoiCentre: null,
+  setQueryAoiCentre: (centre) => set({ queryAoiCentre: centre }),
 
   commandOpen: false,
   setCommandOpen: (open) => set({ commandOpen: open }),

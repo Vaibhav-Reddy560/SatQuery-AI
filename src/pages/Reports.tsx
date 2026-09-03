@@ -3,7 +3,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "motion/react";
 import { Plus, Download, Clock, FileStack, X } from "lucide-react";
 import { Page } from "@/components/layout/Page";
+import { AssistantPanel } from "@/components/ai/AssistantPanel";
 import { Button } from "@/components/ui/Button";
+import { reportsAssistant } from "@/services/pageAssistants";
 import { Input, Textarea } from "@/components/ui/Input";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { reports as initialReports, projects } from "@/data/mockData";
@@ -254,6 +256,8 @@ export default function Reports() {
           <ReportCard key={r.id} r={r} />
         ))}
       </section>
+
+      <AssistantPanel {...reportsAssistant(reports)} />
     </Page>
   );
 }

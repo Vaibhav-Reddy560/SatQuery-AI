@@ -1,6 +1,8 @@
 import { Download, Building2, TreePine, Waves, Layers } from "lucide-react";
 import { Page } from "@/components/layout/Page";
+import { AssistantPanel } from "@/components/ai/AssistantPanel";
 import { Button } from "@/components/ui/Button";
+import { changeDetectionAssistant } from "@/services/pageAssistants";
 import { Num, Km2 } from "@/components/ui/Num";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
@@ -158,6 +160,8 @@ export default function ChangeDetection() {
           </div>
         </div>
       </div>
+
+      <AssistantPanel {...changeDetectionAssistant} />
     </Page>
   );
 }

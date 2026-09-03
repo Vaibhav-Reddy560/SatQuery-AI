@@ -3,7 +3,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "motion/react";
 import { Plus, Search, MapPin, BarChart3, Images, X } from "lucide-react";
 import { Page } from "@/components/layout/Page";
+import { AssistantPanel } from "@/components/ai/AssistantPanel";
 import { Button } from "@/components/ui/Button";
+import { projectsAssistant } from "@/services/pageAssistants";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Segmented } from "@/components/ui/Segmented";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -326,6 +328,8 @@ export default function Projects() {
           No projects match &ldquo;{q}&rdquo;.
         </p>
       )}
+
+      <AssistantPanel {...projectsAssistant(shown, filter)} />
     </Page>
   );
 }

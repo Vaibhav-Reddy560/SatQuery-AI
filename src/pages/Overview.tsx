@@ -6,7 +6,9 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area,
 } from "recharts";
 import { Page, Section } from "@/components/layout/Page";
+import { AssistantPanel } from "@/components/ai/AssistantPanel";
 import { Button } from "@/components/ui/Button";
+import { overviewAssistant } from "@/services/pageAssistants";
 import { Num } from "@/components/ui/Num";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { HudFrame } from "@/components/ui/HudFrame";
@@ -230,6 +232,8 @@ export default function Overview() {
           </div>
         </div>
       </Section>
+
+      <AssistantPanel {...overviewAssistant} />
     </Page>
   );
 }
