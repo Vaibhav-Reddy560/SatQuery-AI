@@ -1,32 +1,36 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&height=210&color=0:0D1220,50:354460,100:3D7FFF&text=SatQuery%20AI&fontColor=F2F2F4&fontSize=62&fontAlignY=38&animation=fadeIn&section=header" width="100%" alt="SatQuery AI" />
+<img src="https://capsule-render.vercel.app/api?type=waving&height=230&color=0:0D1220,35:212C44,70:354460,100:3D7FFF&text=SatQuery%20AI&fontColor=F2F2F4&fontSize=60&fontAlignY=34&desc=Vision-Language%20Satellite%20Intelligence&descAlignY=54&descSize=18&descAlign=50&animation=fadeIn&section=header" width="100%" alt="SatQuery AI" />
 
-<img src="public/brand/satquery-icon-512.png" width="120" alt="SatQuery AI logo" />
+<img src="public/brand/satquery-icon-512.png" width="104" alt="SatQuery AI logo" />
+
+<br /><br />
+
+[![Typing SVG](https://readme-typing-svg.demolab.com/?font=Space+Grotesk&weight=700&size=22&duration=2600&pause=900&color=3D7FFF&center=true&vCenter=true&width=760&height=50&lines=Ask+Earth+Anything.;Draw+an+area.+Query+only+that.;Detection+%C2%B7+Change+%C2%B7+Land+cover+%C2%B7+Measurement.;SIH+2026+-+Problem+Statement+SIH26167.)](https://github.com/Vaibhav-Reddy560/SatQuery-AI)
 
 <br />
 
-[![Typing SVG](https://readme-typing-svg.demolab.com/?font=Orbitron&weight=700&size=20&duration=2800&pause=900&color=3D7FFF&center=true&vCenter=true&width=760&height=50&lines=Ask+Earth+Anything.;Draw+an+area.+Query+only+that.;Detection+%C2%B7+Change+%C2%B7+Land+cover+%C2%B7+Measurement.;SIH+2026+-+Problem+Statement+SIH26167.)](https://github.com/Vaibhav-Reddy560/SatQuery-AI)
-
-```
-ORBITAL LINK ......... OK
-SENSOR ARRAY .......... OK
-VISION MODEL ........... READY
-4 CAPABILITIES ONLINE
-```
-
 [![CI](https://github.com/Vaibhav-Reddy560/SatQuery-AI/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/Vaibhav-Reddy560/SatQuery-AI/actions/workflows/backend-ci.yml)
-![React](https://img.shields.io/badge/React-19-3D7FFF?style=for-the-badge&logo=react&logoColor=white&labelColor=0D1220)
-![TypeScript](https://img.shields.io/badge/TypeScript-6-3D7FFF?style=for-the-badge&logo=typescript&logoColor=white&labelColor=0D1220)
-![Vite](https://img.shields.io/badge/Vite-8-3D7FFF?style=for-the-badge&logo=vite&logoColor=white&labelColor=0D1220)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4-3D7FFF?style=for-the-badge&logo=tailwindcss&logoColor=white&labelColor=0D1220)
-![MapLibre](https://img.shields.io/badge/MapLibre_GL-6-6FB8FF?style=for-the-badge&logo=maplibre&logoColor=white&labelColor=0D1220)
-![FastAPI](https://img.shields.io/badge/FastAPI-backend-6FB8FF?style=for-the-badge&logo=fastapi&logoColor=white&labelColor=0D1220)
-![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-3D7FFF?style=for-the-badge&logo=vercel&logoColor=white&labelColor=0D1220)
+&nbsp;
+![Status](https://img.shields.io/badge/status-hackathon_MVP-3D7FFF?style=for-the-badge&labelColor=0D1220)
+&nbsp;
+![Vercel](https://img.shields.io/badge/deployed_on-vercel-3D7FFF?style=for-the-badge&logo=vercel&logoColor=white&labelColor=0D1220)
+
+<br />
+
+<img src="https://skillicons.dev/icons?i=react,ts,vite,tailwind,threejs,fastapi,py,postgres,vercel,git&theme=dark" alt="tech stack icons" />
 
 </div>
 
 <br />
+
+<div align="center">
+
+**[Report a bug](../../issues)** &nbsp;·&nbsp; **[Request a feature](../../issues)** &nbsp;·&nbsp; **[Contents ↓](#contents)**
+
+</div>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Overview
 
@@ -34,19 +38,20 @@ VISION MODEL ........... READY
 
 Built for **Smart India Hackathon 2026** (Problem Statement **SIH26167**), it pairs a full interactive mapping dashboard with a FastAPI backend structured around real remote-sensing benchmarks (**BigEarthNet**, **VRSBench**), ready for a trained vision-language model to be dropped in behind the same API surface.
 
-<div align="center">
+### How it works
 
-**[Report a bug](../../issues)** &nbsp;·&nbsp; **[Request a feature](../../issues)**
+```text
+1. ASK       →  Type a question in plain English, or pick a suggestion.
+2. DRAW      →  Optionally circle an area of interest on the live map.
+3. ANALYZE   →  The agent parses intent, runs the right tool, scores confidence.
+4. REVIEW    →  Get back a map overlay, a data table, and a plain-English summary.
+```
 
-</div>
-
----
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ### Contents
 
 [Features](#features) · [Design system](#design-system) · [Architecture](#architecture) · [Tech stack](#tech-stack) · [Getting started](#getting-started) · [Deployment](#deployment) · [Roadmap](#roadmap) · [Team](#team)
-
----
 
 ## Features
 
@@ -109,18 +114,26 @@ The frontend, API surface, database schema and evaluation harness are fully buil
 
 </details>
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Design system
 
 The whole app runs on a **monochrome-blue / brushed-metal** language rather than the flat dark-mode-with-accent-color look most dashboards default to:
 
 - **Chrome & bevel** — every interactive surface (nav items, buttons, panels) reads as a physical hardware key: raised at rest, pressed-in when active, with real inset highlight/shadow, not a flat colour swap.
-- **One accent, used sparingly** — a single blue (`#3D7FFF`) carries every "this matters" signal; everything else is graphite, chrome and near-black so the accent never has to compete.
+- **One accent, used sparingly** — a single blue carries every "this matters" signal; everything else is graphite, chrome and near-black so the accent never has to compete.
 - **HUD instrumentation** — live telemetry tickers, scan-line sweeps, a CRT-style satellite readout panel and a boot sequence give the workspace the feel of mission control, not a generic admin template.
 - **Typeface** — Maxima Nouva throughout the UI; Zrnic reserved exclusively for the wordmark.
 
----
+<div align="center">
+
+| ![](https://img.shields.io/badge/%20-0D1220?style=flat-square) | ![](https://img.shields.io/badge/%20-212C44?style=flat-square) | ![](https://img.shields.io/badge/%20-354460?style=flat-square) | ![](https://img.shields.io/badge/%20-3D7FFF?style=flat-square) | ![](https://img.shields.io/badge/%20-6FB8FF?style=flat-square) | ![](https://img.shields.io/badge/%20-F2F2F4?style=flat-square) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| `#0D1220`<br>seam | `#212C44`<br>chrome low | `#354460`<br>chrome mid | `#3D7FFF`<br>**accent** | `#6FB8FF`<br>atmos | `#F2F2F4`<br>text |
+
+</div>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Architecture
 
@@ -147,9 +160,28 @@ flowchart LR
     Pages -- "fetch /api/v1/*" --> API
 ```
 
+<details>
+<summary><strong>Request lifecycle for a single query</strong></summary>
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant A as API
+    participant E as Inference Engine
+    U->>F: "Detect ships near Mumbai port"
+    F->>A: POST /api/v1/query
+    A->>E: parse intent + run tool
+    E-->>A: structured result
+    A-->>F: JSON response
+    F-->>U: map overlay + summary
+```
+
+</details>
+
 Deployed as a single **Vercel** project using [Services](https://vercel.com/docs/services): the Vite frontend and the FastAPI backend build and ship independently but serve from one domain — `/api/*` routes to the backend, everything else to the frontend.
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Tech stack
 
@@ -168,7 +200,7 @@ Deployed as a single **Vercel** project using [Services](https://vercel.com/docs
 | Auth | python-jose (JWT) |
 | Testing | Pytest |
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Getting started
 
@@ -212,7 +244,7 @@ Copy `.env.example` to `.env` and fill in what you need. Everything has a workin
 | `DATABASE_URL` | Backend | Defaults to local SQLite; needs a real Postgres URL in production. |
 | `SECRET_KEY` | Backend | JWT signing key — generate your own, never reuse the example value. |
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Deployment
 
@@ -229,7 +261,7 @@ The repo ships with a `vercel.json` configured for [Vercel Services](https://ver
 
 Import the repo on Vercel, attach a Postgres database (Neon, via the Marketplace) as `DATABASE_URL`, set a fresh `SECRET_KEY`, and deploy.
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Roadmap
 
@@ -238,17 +270,29 @@ Import the repo on Vercel, attach a Postgres database (Neon, via the Marketplace
 - [ ] Authenticated multi-user projects with persisted history
 - [ ] Async job queue for long-running analyses
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&height=3&color=0:0D1220,50:3D7FFF,100:0D1220" width="100%" alt="" />
 
 ## Team
 
 Built for **Smart India Hackathon 2026** by:
 
-| | |
-|---|---|
-| [**Vaibhav-Reddy560**](https://github.com/Vaibhav-Reddy560) | Frontend & design system |
-| [**Lochanchennur**](https://github.com/Lochanchennur) | Backend & MLOps |
-| [**CalmOutlaws**](https://github.com/CalmOutlaws) | Backend & MLOps |
+<div align="center">
+
+<table>
+<tr>
+<td align="center">
+<a href="https://github.com/Vaibhav-Reddy560"><img src="https://github.com/Vaibhav-Reddy560.png" width="72" style="border-radius:50%" /><br /><strong>Vaibhav-Reddy560</strong></a><br />Frontend & design system
+</td>
+<td align="center">
+<a href="https://github.com/Lochanchennur"><img src="https://github.com/Lochanchennur.png" width="72" style="border-radius:50%" /><br /><strong>Lochanchennur</strong></a><br />Backend & MLOps
+</td>
+<td align="center">
+<a href="https://github.com/CalmOutlaws"><img src="https://github.com/CalmOutlaws.png" width="72" style="border-radius:50%" /><br /><strong>CalmOutlaws</strong></a><br />Backend & MLOps
+</td>
+</tr>
+</table>
+
+</div>
 
 <br />
 
