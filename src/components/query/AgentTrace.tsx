@@ -104,6 +104,21 @@ export function AgentTrace({ response }: { response: QueryResponse }) {
                   <Num value={Math.round(response.intent.confidence * 100)} suffix="%" />
                 </dd>
               </div>
+              {response.trace && response.trace.length > 0 && (
+                <div className="mt-3 border-t border-chrome-seam pt-3">
+                  <div className="mb-1.5 text-[0.6875rem] uppercase text-phosphor-dim">Agent steps</div>
+                  <ol className="space-y-1 text-phosphor-dim">
+                    {response.trace.map((step, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span aria-hidden="true" className="shrink-0 text-phosphor-dim/50">
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <span className="min-w-0">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </dl>
           </motion.div>
         )}

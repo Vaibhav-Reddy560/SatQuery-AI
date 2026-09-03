@@ -1,0 +1,23 @@
+{
+  "source": "Earth Search STAC (https://earth-search.aws.element84.com) \u2014 sentinel-2-l2a",
+  "authentication": "none",
+  "license": "Copernicus Programme terms \u2014 free to use (https://dataspace.copernicus.eu/terms-and-conditions)",
+  "scene_id": "S2A_43REQ_20260816_2_L2A",
+  "acquisition_datetime": "2026-08-16T05:50:41.321000Z",
+  "cloud_cover_percent": 10.995463,
+  "epsg": 32643,
+  "crs": "EPSG:32643",
+  "pixel_size_m": 10,
+  "bands": [
+    "B04 (RED)",
+    "B08 (NIR)",
+    "SCL (cloud mask)"
+  ],
+  "scale_factor": 0.0001,
+  "center_lat": 30.901,
+  "center_lng": 75.8573,
+  "pixels": 224,
+  "sample_ndvi_mean": 0.1753,
+  "regenerate_command": "python scripts/fetch_sentinel2_sample.py",
+  "provider_note": "Free public STAC; anonymous reads; no SLA; may be rate-limited."
+}

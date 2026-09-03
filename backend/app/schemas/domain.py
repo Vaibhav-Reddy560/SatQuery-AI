@@ -64,6 +64,14 @@ class QueryRequest(BaseModel):
     centre: Optional[List[float]] = Field(default=[78.9629, 20.5937], description="[lng, lat]")
     location_name: Optional[str] = "Selected Region"
     satellite_sources: Optional[List[str]] = Field(default=["Sentinel-1 SAR", "Sentinel-2 Multispectral"])
+    # Optional AOI / workspace context passed through to the query planner so
+    # a drawn map selection or selected imagery can scope the analysis.
+    aoi_geometry: Optional[Dict[str, Any]] = Field(
+        default=None, description="GeoJSON geometry of the drawn AOI"
+    )
+    image_ids: Optional[List[str]] = Field(default=None, description="Imagery to analyse")
+    from_date: Optional[str] = Field(default=None, description="Start of analysis window (ISO)")
+    to_date: Optional[str] = Field(default=None, description="End of analysis window (ISO)")
 
 class QueryIntentOut(BaseModel):
     type: str
@@ -87,8 +95,10 @@ class QueryResponse(BaseModel):
     attachments: List[QueryAttachment] = []
     suggested_actions: List[str] = []
     confidence: float
-    analysis_kind: str  # detection, change, land_cover, measurement
+    analysis_kind: str  # detection, change, land_cover, vegetation, measurement, general
     analysis_payload: Dict[str, Any]
+    latency_ms: Optional[float] = None
+    trace: Optional[List[str]] = Field(default=None, description="Agent execution trace steps")
 
 # Analysis Specs
 class DetectionFeature(BaseModel):

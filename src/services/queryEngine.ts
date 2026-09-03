@@ -85,6 +85,10 @@ function formatResponse(result: AnalysisOutput, intent: QueryIntent): string {
       return formatChangeResponse(result);
     case "land_cover":
       return formatLandCoverResponse(result);
+    case "vegetation":
+      // Forward-compat: backend vegetation results carry their own summary;
+      // the local mock engine never produces this kind.
+      return result.summaryText;
     case "measurement":
       return formatMeasurementResponse(result);
   }
@@ -106,6 +110,11 @@ function getAttachments(result: AnalysisOutput): QueryResponse["attachments"] {
       return [
         { type: "image", label: "Land cover classification map", confidence: result.confidence },
         { type: "data", label: `${result.classes.length} land classes` },
+      ];
+    case "vegetation":
+      return [
+        { type: "map_region", label: "Vegetation status zones", confidence: result.confidence },
+        { type: "data", label: "Vegetation health summary" },
       ];
     case "measurement":
       return [
@@ -178,10 +187,12 @@ import { sendQueryToBackend } from "./apiClient";
  * with fallback to the local simulated pipeline.
  */
 export async function processQueryAsync(userQuery: Query): Promise<QueryResponse> {
-  // Attempt backend API call first
-  const centre: [number, number] = [78.9629, 20.5937];
-  const location = "Selected Region";
-  
+  // Attempt backend API call first. Parse the text for a location/centre so
+  // the backend receives real context instead of a hardcoded India default.
+  const parsed = parseQuery(userQuery.raw);
+  const centre: [number, number] = [parsed.centre.lng, parsed.centre.lat];
+  const location = parsed.location ?? "Selected AOI";
+
   const backendResponse = await sendQueryToBackend(userQuery.id, userQuery.raw, centre, location);
   if (backendResponse) {
     return backendResponse;

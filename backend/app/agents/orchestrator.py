@@ -1,0 +1,154 @@
+"""
+Query orchestrator.
+
+Full Phase 1 pipeline:
+
+    User Query
+        -> Intent Detection
+        -> Query Planning
+        -> Tool Selection
+        -> Analysis Service (deterministic mock OR real satellite pipeline)
+        -> Structured Result
+        -> NL Explanation
+
+Returns an ``AgentRun`` carrying everything the frontend AgentTrace needs:
+intent, confidence, plan, selected tool, result, explanation and a step
+trace. Services stamp their results with an honest ``mode``: ``mock`` for
+the deterministic demo backends (object/water/land-cover/change/measurement)
+and ``live`` for the real NDVI vegetation pipeline (Sentinel-2 imagery). The
+trace reflects whichever mode actually ran.
+"""
+
+import time
+from typing import List, Optional
+
+from backend.app.agents.base import QueryAgent  # noqa: F401
+from backend.app.agents.intent_detector import intent_detector
+from backend.app.agents.planner import planner
+from backend.app.agents.tool_selector import tool_selector
+from backend.app.analysis.base import AnalysisServiceError
+from backend.app.analysis.registry import analysis_service_registry
+from backend.app.schemas.ai import (
+    AgentContext,
+    AgentRun,
+    AnalysisRequest,
+    AnalysisResult,
+    IntentType,
+    ToolSelection,
+)
+
+# Intents the agent answers directly (no analysis service).
+_ANSWERED_WITHOUT_TOOL = (
+    IntentType.general_satellite_question,
+    IntentType.unknown,
+)
+
+_EXAMPLE_TASKS = (
+    "detecting objects (buildings, ships, vehicles)",
+    "finding water bodies",
+    "land-cover classification",
+    "change detection between two dates",
+    "vegetation analysis",
+    "measuring area or distance",
+)
+
+
+class QueryOrchestrator:
+    """Executes the full agent pipeline for one user query."""
+
+    def run(
+        self,
+        raw_query: str,
+        context: Optional[AgentContext] = None,
+    ) -> AgentRun:
+        start = time.perf_counter()
+        trace: List[str] = ["Received query"]
+
+        # 1. Intent detection
+        intent_result = intent_detector.classify(raw_query)
+        trace.append(
+            f"Detected intent: {intent_result.intent.value} "
+            f"(confidence {intent_result.confidence:.2f})"
+        )
+
+        # 2. Tool selection
+        selection: Optional[ToolSelection] = tool_selector.select(intent_result)
+
+        # 3. Query planning -> AnalysisRequest
+        plan: Optional[AnalysisRequest] = planner.plan(
+            raw_query=raw_query,
+            intent_result=intent_result,
+            tool_selection=selection,
+            context=context,
+        )
+        if selection is not None and plan is not None:
+            trace.append(f"Selected tool: {selection.tool_id}")
+
+        # 4. Run the analysis service for actionable intents.
+        result: Optional[AnalysisResult] = None
+        explanation: str = ""
+
+        if intent_result.intent in _ANSWERED_WITHOUT_TOOL or selection is None:
+            trace.append("No dedicated tool needed — answering directly")
+            explanation = self._non_analysis_explanation(raw_query, intent_result.intent)
+        else:
+            try:
+                service = analysis_service_registry.get(selection.tool_id)
+                trace.append(f"Executing analysis service: {service.tool_id}")
+                result = service.analyze(plan)
+                if result.mode == "mock":
+                    trace.append("Executed analysis (deterministic mock model backend)")
+                else:
+                    trace.append(
+                        f"Executed analysis ({result.mode} pipeline: real "
+                        "satellite imagery, no simulation)"
+                    )
+                trace.append("Generated structured result")
+                explanation = result.summary_text
+            except AnalysisServiceError as exc:
+                trace.append(f"Analysis failed ({exc.code}): {exc.user_message}")
+                explanation = (
+                    f"I couldn't complete that analysis: {exc.user_message}"
+                )
+            except Exception as exc:  # noqa: BLE001 - surface as a clear agent message
+                trace.append(f"Analysis failed: {exc}")
+                explanation = (
+                    "I ran into an error while analysing that request. "
+                    "Please try rephrasing it."
+                )
+
+        latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
+
+        return AgentRun(
+            query=raw_query,
+            intent=intent_result.intent,
+            intent_confidence=intent_result.confidence,
+            entities=intent_result.entities,
+            reasoning=intent_result.reasoning,
+            plan=plan,
+            selected_tool=selection,
+            result=result,
+            explanation=explanation,
+            trace=trace,
+            latency_ms=latency_ms,
+        )
+
+    @staticmethod
+    def _non_analysis_explanation(raw_query: str, intent: IntentType) -> str:
+        if intent == IntentType.unknown:
+            return (
+                "I couldn't map that to a satellite-analysis task. I can help with "
+                + ", ".join(_EXAMPLE_TASKS)
+                + ". Try rephrasing, e.g. \"find water bodies near Mumbai\"."
+            )
+        return (
+            "I understood your question about the selected area. For a concrete "
+            "analysis, ask me to do one of: "
+            + ", ".join(_EXAMPLE_TASKS)
+            + ". (This response is generated by the deterministic mock agent; "
+            "no real analysis was run.)"
+        )
+
+
+# Canonical singleton used by the API layer.
+query_orchestrator = QueryOrchestrator()

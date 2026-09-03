@@ -71,6 +71,7 @@ export type AnalysisResultKind =
   | "detection"
   | "change"
   | "land_cover"
+  | "vegetation"
   | "measurement";
 
 export interface AnalysisResultBase {
@@ -150,12 +151,30 @@ export interface MeasurementResult extends AnalysisResultBase {
   summaryText: string;
 }
 
+// ── Vegetation Result ───────────────────────────────────
+
+export interface VegetationZone {
+  id: string;
+  status: "healthy" | "stressed" | "degraded" | "loss";
+  areaKm2: number;
+  confidence: number;
+}
+
+export interface VegetationResult extends AnalysisResultBase {
+  kind: "vegetation";
+  totalAreaKm2: number;
+  vegetationLostKm2: number;
+  zones: VegetationZone[];
+  summaryText: string;
+}
+
 // ── Union of all results ──────────────────────────────────
 
 export type AnalysisOutput =
   | DetectionResult
   | ChangeResult
   | LandCoverResult
+  | VegetationResult
   | MeasurementResult;
 
 // ── 5. Natural-language Response (engine output) ──────────
@@ -176,4 +195,6 @@ export interface QueryResponse {
   suggestedActions: string[];
   /** Processing time in ms (simulated) */
   processingTimeMs: number;
+  /** Agent execution trace steps from the backend (optional) */
+  trace?: string[];
 }
