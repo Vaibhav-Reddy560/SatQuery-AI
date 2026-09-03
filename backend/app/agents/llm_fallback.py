@@ -1,29 +1,27 @@
 """
-LLM Fallback — used when the regex-based intent_classifier isn't confident
-enough about a query. Calls Groq's fast LLM API to do real language-based
-intent classification instead of keyword matching.
+LLM Fallback — semantic intent classification for queries the deterministic
+regex classifier (intent_detector.py) can't confidently handle.
 
-This is intentionally a FALLBACK, not the primary path:
-  - Regex classification is instant, free, and works offline.
-  - The LLM call adds latency and costs API quota, so it should only
-    fire when the cheap path is unsure.
+Returns a real IntentResult, matching the exact schema the orchestrator
+already expects, so it can be dropped straight in as a replacement for a
+low-confidence/unknown regex result with no other code changes required.
 """
 
 import os
 import json
-from typing import Dict, Any
+from typing import Optional
 
 from dotenv import load_dotenv
 from groq import Groq
 
+from backend.app.schemas.ai import IntentResult, IntentType
+
 load_dotenv()
 
-_client = None
+_client: Optional[Groq] = None
 
 
 def _get_client() -> Groq:
-    """Lazily create the Groq client so importing this module doesn't
-    require an API key to be present (e.g. during basic unit tests)."""
     global _client
     if _client is None:
         api_key = os.getenv("GROQ_API_KEY")
@@ -35,31 +33,41 @@ def _get_client() -> Groq:
     return _client
 
 
-VALID_TOOLS = {"land_cover", "change_detection", "measurement", "detection"}
+# Every valid IntentType value, straight from the enum, so the prompt and
+# the parser can never drift out of sync with the schema.
+_VALID_INTENTS = {member.value for member in IntentType}
 
 SYSTEM_PROMPT = """You are an intent classifier for a satellite remote-sensing assistant.
-Given a user's natural language query, decide which tool(s) it needs.
+Given a user's natural language query, classify it into EXACTLY ONE of these intents:
 
-Available tools:
-- land_cover: land cover / land use classification questions
-- change_detection: comparing two time periods, before/after questions
-- measurement: distance, area, size, perimeter questions
-- detection: finding specific objects (ships, buildings, solar panels, water, forests, crops, airports)
+- detect_objects: finding specific objects (buildings, ships, vehicles, aircraft, solar panels, roads, bridges)
+- find_water: locating water bodies (lakes, rivers, ponds, reservoirs, flooding)
+- land_cover: land cover / land use classification
+- change_detection: comparing two time periods, before/after, what changed
+- vegetation_analysis: forest/crop/vegetation health, loss, deforestation, NDVI
+- measure_area: calculating area, extent, size, coverage
+- measure_distance: calculating distance, length, perimeter, coastline
+- visual_interpretation: asking what's visible in the actual image/scene
+- general_satellite_question: general questions about satellites/imagery, not a specific analysis task
+- unknown: doesn't fit any of the above
 
 Respond with ONLY valid JSON, no other text, in this exact shape:
 {
-  "tools": ["tool_name", ...],
+  "intent": "one_of_the_values_above",
   "location": "place name or null",
-  "confidence": 0.0 to 1.0
+  "confidence": 0.0 to 1.0,
+  "reasoning": "one short sentence explaining your choice"
 }
+
+Always make your best guess — only use "unknown" if truly nothing fits.
 """
 
 
-def classify_with_llm(text: str) -> Dict[str, Any]:
+def classify_with_llm(text: str) -> IntentResult:
     """
-    Sends the query to Groq's LLM and parses the structured intent back out.
-    Raises on API failure or malformed response — caller should catch and
-    fall back to the regex classifier's best guess if this fails.
+    Sends the query to Groq's LLM and returns a real IntentResult.
+    Raises on API failure or malformed response — callers should catch
+    and keep the regex classifier's original result if this fails.
     """
     client = _get_client()
 
@@ -75,30 +83,26 @@ def classify_with_llm(text: str) -> Dict[str, Any]:
     )
 
     raw = response.choices[0].message.content.strip()
-
-    # Models sometimes wrap JSON in markdown fences despite instructions — strip those.
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:].strip()
-
     parsed = json.loads(raw)
 
-    tools = [t for t in parsed.get("tools", []) if t in VALID_TOOLS]
-    if not tools:
-        tools = ["detection"]
+    intent_str = parsed.get("intent", "unknown")
+    if intent_str not in _VALID_INTENTS:
+        intent_str = "unknown"
 
-    return {
-        "tools": tools,
-        "primary_tool": tools[0],
-        "location": parsed.get("location") or "Selected Area of Interest",
-        "confidence": float(parsed.get("confidence", 0.7)),
-        "source": "llm",
-    }
+    entities = {}
+    location = parsed.get("location")
+    if location:
+        entities["location"] = location
+
+    return IntentResult(
+        intent=IntentType(intent_str),
+        confidence=float(parsed.get("confidence", 0.6)),
+        entities=entities,
+        reasoning=f"[LLM fallback] {parsed.get('reasoning', '')}",
+    )
 
 
 if __name__ == "__main__":
-    # Manual test — requires a real GROQ_API_KEY in .env to run.
     test_queries = [
         "Is there any greenery being cut down near the hills?",
         "Tell me what's happening around the coast lately",

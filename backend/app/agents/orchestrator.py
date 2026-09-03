@@ -22,6 +22,7 @@ Sentinel-2 imagery). The trace reflects whichever mode actually ran.
 import time
 from typing import List, Optional
 
+from backend.app.agents.llm_fallback import classify_with_llm
 from backend.app.agents.base import QueryAgent  # noqa: F401
 from backend.app.agents.intent_detector import intent_detector
 from backend.app.agents.planner import planner
@@ -70,6 +71,21 @@ class QueryOrchestrator:
             f"Detected intent: {intent_result.intent.value} "
             f"(confidence {intent_result.confidence:.2f})"
         )
+        # 1b. LLM fallback for low-confidence / unknown regex results.
+        # The regex classifier is intentionally deterministic and fast;
+        # this escalates to a real LLM only when it's genuinely unsure,
+        # per the "later phase can add an LLM/VLM implementation" note
+        # in intent_detector.py's docstring.
+        if intent_result.intent == IntentType.unknown or intent_result.confidence < 0.6:
+            try:
+                llm_result = classify_with_llm(raw_query)
+                trace.append(
+                    f"Escalated to LLM fallback: {llm_result.intent.value} "
+                    f"(confidence {llm_result.confidence:.2f})"
+                )
+                intent_result = llm_result
+            except Exception as exc:
+                trace.append(f"LLM fallback unavailable, keeping regex result: {exc}")
 
         # 2. Tool selection
         selection: Optional[ToolSelection] = tool_selector.select(intent_result)
