@@ -178,7 +178,7 @@ def test_sample_provider_clips_to_aoi():
     provider = SampleSentinel2Provider(SAMPLE_DIR)
     full = provider.fetch(_sample_request())
     # An explicit centre slightly inside the sample coverage clips the window.
-    clip = provider.fetch(_sample_request(centre=[75.8533, 30.8970]))
+    clip = provider.fetch(_sample_request(centre=[75.009229, 31.1162]))
     assert clip.red.shape[0] < full.red.shape[0]
     assert clip.valid.sum() > 0
 

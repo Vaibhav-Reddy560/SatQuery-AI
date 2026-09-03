@@ -15,6 +15,7 @@ TOOL_WATER_DETECTOR = "water_detector"
 TOOL_LAND_COVER_CLASSIFIER = "land_cover_classifier"
 TOOL_CHANGE_DETECTOR = "change_detector"
 TOOL_VEGETATION_ANALYZER = "vegetation_analyzer"
+TOOL_VISUAL_ANALYZER = "visual_analyzer"
 TOOL_MEASUREMENT = "geospatial_measurement"
 
 # Intents that have no dedicated tool (handled without an analysis service).
@@ -59,6 +60,7 @@ def _register_all() -> None:
         measurement,
         object_detection,
         vegetation,
+        visual,
         water_detection,
     )
 
@@ -68,6 +70,7 @@ def _register_all() -> None:
         land_cover.land_cover_service,
         change_detection.change_detection_service,
         vegetation.vegetation_analysis_service,
+        visual.visual_analysis_service,
         measurement.measurement_service,
     ):
         analysis_service_registry.register(service)

@@ -72,6 +72,7 @@ export type AnalysisResultKind =
   | "change"
   | "land_cover"
   | "vegetation"
+  | "water"
   | "measurement";
 
 export interface AnalysisResultBase {
@@ -84,6 +85,17 @@ export interface AnalysisResultBase {
   location: string;
   /** Centre of the analysis area */
   centre: GeoCoordinates;
+  /** Whether the result came from a live algorithm or a mock (backend results). */
+  mode?: "mock" | "live";
+  /**
+   * Algorithm / model id that produced the result (backend results).
+   * `algorithm` = radiometric math (NDVI/NDWI); `ml` = a trained model.
+   */
+  model?: string;
+  /** Algorithm / model version (backend results). */
+  modelVersion?: string;
+  /** Honest processing kind: "algorithm" (NDVI/NDWI math) vs "ml" (trained model). */
+  modelKind?: "algorithm" | "ml";
 }
 
 // ── Detection Result ──────────────────────────────────────
@@ -120,12 +132,42 @@ export interface ChangeResult extends AnalysisResultBase {
   beforeDate: string;
   afterDate: string;
   summaryText: string;
+  /** Provenance of the earlier observation (real bi-temporal results). */
+  beforeImagery?: ImageryMetadata;
+  /** Provenance of the later observation (real bi-temporal results). */
+  afterImagery?: ImageryMetadata;
+  /** Real statistics over pixels valid in BOTH observations. */
+  changeStats?: ChangeStats;
+  /** |delta NDVI| classification threshold used (default 0.15). */
+  threshold?: number;
+  /** Method id, e.g. "delta_ndvi" (radiometric, never ML). */
+  changeMethod?: string;
+  /** Georeferenced delta-NDVI change raster the map can draw. */
+  overlay?: RasterOverlay;
+}
+
+export interface ChangeStats {
+  validPixelCount: number;
+  unchangedPixelCount: number;
+  changedPixelCount: number;
+  lossPixelCount: number;
+  gainPixelCount: number;
+  unchangedPercentage: number;
+  changedPercentage: number;
+  lossPercentage: number;
+  gainPercentage: number;
+  totalAreaKm2: number;
+  changedAreaKm2: number;
+  lossAreaKm2: number;
+  gainAreaKm2: number;
 }
 
 // ── Land Cover Result ─────────────────────────────────────
 
 export interface LandCoverClass {
   name: string;
+  /** Machine class code (water, vegetation, built_up, bare) — backend results. */
+  code?: string;
   percentage: number;
   areaKm2: number;
   color: string;
@@ -136,6 +178,12 @@ export interface LandCoverResult extends AnalysisResultBase {
   classes: LandCoverClass[];
   totalAreaKm2: number;
   summaryText: string;
+  /** Input features the classifier used (backend ML results). */
+  modelInputs?: string[];
+  /** Provenance of the imagery that was classified. */
+  imagery?: ImageryMetadata;
+  /** Georeferenced categorical classification raster the map can draw. */
+  overlay?: RasterOverlay;
 }
 
 // ── Measurement Result ────────────────────────────────────
@@ -160,12 +208,94 @@ export interface VegetationZone {
   confidence: number;
 }
 
+/** Real NDVI statistics over valid (non-masked) pixels only. */
+export interface NdviStats {
+  min: number;
+  max: number;
+  mean: number;
+  median: number;
+  std?: number;
+  /** Share of the analysis window with usable surface pixels (0–100). */
+  validPixelPercentage: number;
+}
+
+/**
+ * Real NDWI statistics over valid (non-masked) pixels only.
+ * `waterPixelPercentage` is the share of VALID pixels classified as water
+ * (NDWI >= threshold).
+ */
+export interface NdwiStats {
+  min: number;
+  max: number;
+  mean: number;
+  median: number;
+  std?: number;
+  /** Share of the analysis window with usable surface pixels (0–100). */
+  validPixelPercentage: number;
+  /** Share of valid pixels classified as water (0–100). */
+  waterPixelPercentage: number;
+}
+
+/** Provenance of the imagery an analysis ran on. */
+export interface ImageryMetadata {
+  provider: string;
+  satellite: string;
+  sensor: string;
+  acquisitionDate?: string;
+  resolutionM?: number;
+  crs?: string;
+  bands: string[];
+  sceneId?: string;
+  cloudCoverPercent?: number;
+  processingMethod: string;
+}
+
+/**
+ * A georeferenced raster overlay drawn on the MapLibre map as an image
+ * source. `bounds` is [west, south, east, north] in lng/lat; the image is a
+ * data URL produced by the backend, so no separate asset serving is needed.
+ */
+export interface RasterOverlay {
+  imageDataUrl: string;
+  bounds: [number, number, number, number];
+  label: string;
+  opacity: number;
+  colormap: "ndvi" | "ndwi" | "classes";
+}
+
 export interface VegetationResult extends AnalysisResultBase {
   kind: "vegetation";
   totalAreaKm2: number;
   vegetationLostKm2: number;
   zones: VegetationZone[];
   summaryText: string;
+  /** Real NDVI statistics (present when the backend ran the NDVI algorithm). */
+  ndviStats?: NdviStats;
+  /** NDVI class thresholds used by the health-zone classification. */
+  thresholds?: Record<string, number>;
+  /** Provenance of the imagery that was analysed. */
+  imagery?: ImageryMetadata;
+  /** Georeferenced NDVI raster the map can draw. */
+  overlay?: RasterOverlay;
+}
+
+// ── Water Result (real Sentinel-2 NDWI) ───────────────────
+
+export interface WaterResult extends AnalysisResultBase {
+  kind: "water";
+  /** Water area in km² (pixels with NDWI >= threshold). */
+  waterAreaKm2: number;
+  /** Total analysed surface area in km² (valid pixels). */
+  totalAreaKm2: number;
+  summaryText: string;
+  /** Real NDWI statistics (present when the backend ran the NDWI algorithm). */
+  ndwiStats?: NdwiStats;
+  /** Water classification threshold used (default 0.0). */
+  threshold: number;
+  /** Provenance of the imagery that was analysed. */
+  imagery?: ImageryMetadata;
+  /** Georeferenced NDWI raster the map can draw. */
+  overlay?: RasterOverlay;
 }
 
 // ── Union of all results ──────────────────────────────────
@@ -175,6 +305,7 @@ export type AnalysisOutput =
   | ChangeResult
   | LandCoverResult
   | VegetationResult
+  | WaterResult
   | MeasurementResult;
 
 // ── 5. Natural-language Response (engine output) ──────────

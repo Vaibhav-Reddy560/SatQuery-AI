@@ -21,6 +21,7 @@ function hasWebGL(): boolean {
   }
 }
 import type { CursorCoordinates, TileSource } from "@/types/map";
+import type { RasterOverlay } from "@/types/query";
 
 /** The raster style document shared by satellite/ndvi/thermal — one source,
     one layer, differing only in paint. */
@@ -68,6 +69,12 @@ interface MapCanvasProps {
   viewMode?: ViewMode;
   /** Draw the Esri place-names/boundaries raster over the imagery. */
   showLabels?: boolean;
+  /**
+   * Optional georeferenced raster (e.g. the backend's NDVI grid) drawn over
+   * the base as an image source. `bounds` is [west, south, east, north]; the
+   * image is a data URL, so no separate asset serving is required.
+   */
+  overlay?: RasterOverlay;
   onCursorMove?: (c: CursorCoordinates) => void;
   onViewChange?: (c: CursorCoordinates, z: number) => void;
   onClick?: (c: CursorCoordinates) => void;
@@ -77,6 +84,8 @@ interface MapCanvasProps {
 
 const LABELS_SOURCE = "labels";
 const LABELS_LAYER = "labels-layer";
+const OVERLAY_SOURCE = "analysis-overlay";
+const OVERLAY_LAYER = "analysis-overlay-layer";
 
 /**
  * Core MapLibre GL JS canvas.
@@ -88,6 +97,7 @@ export function MapCanvas({
   baseLayerId = DEFAULT_SOURCE_ID,
   viewMode = "satellite",
   showLabels = false,
+  overlay,
   onCursorMove,
   onViewChange,
   onClick,
@@ -231,6 +241,57 @@ export function MapCanvas({
       map.off("styledata", apply);
     };
   }, [showLabels, viewMode]);
+
+  // ── Analysis raster overlay (e.g. NDVI) ─────────────────
+  //
+  // Applied on `styledata` as well as on prop changes: `setStyle` discards
+  // every source and layer that isn't part of the incoming document, so after
+  // a style-family switch this has to put itself back. The source URL is
+  // tracked in a ref so a *new* overlay (a fresh analysis) replaces the old
+  // one instead of being skipped by the presence check, and clearing the
+  // overlay removes the layer entirely.
+  const overlayUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      if (!map.isStyleLoaded()) return;
+      const url = overlay?.imageDataUrl ?? null;
+      if (overlayUrlRef.current === url) return;
+      overlayUrlRef.current = url;
+
+      if (map.getLayer(OVERLAY_LAYER)) map.removeLayer(OVERLAY_LAYER);
+      if (map.getSource(OVERLAY_SOURCE)) map.removeSource(OVERLAY_SOURCE);
+      if (!overlay) return;
+
+      // Bounds are [west, south, east, north]; the image source expects
+      // [top-left, top-right, bottom-right, bottom-left] in lng/lat.
+      const [w, s, e, n] = overlay.bounds;
+      map.addSource(OVERLAY_SOURCE, {
+        type: "image",
+        url: overlay.imageDataUrl,
+        coordinates: [
+          [w, n],
+          [e, n],
+          [e, s],
+          [w, s],
+        ],
+      });
+      map.addLayer({
+        id: OVERLAY_LAYER,
+        type: "raster",
+        source: OVERLAY_SOURCE,
+        paint: { "raster-opacity": overlay.opacity },
+      });
+    };
+
+    apply();
+    map.on("styledata", apply);
+    return () => {
+      map.off("styledata", apply);
+    };
+  }, [overlay]);
 
   // ── Map events ─────────────────────────────────────────
   useEffect(() => {

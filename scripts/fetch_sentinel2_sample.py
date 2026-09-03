@@ -6,11 +6,12 @@ Why this exists
 ---------------
 SatQuery Phase 2 computes NDVI from genuine multispectral bands (B04 = RED,
 B08 = NIR at 10 m, plus the 20 m Scene Classification Layer for cloud
-masking). Live retrieval over the network is not always possible during an
-SIH demo or in CI, so the repo ships a small real sample produced by this
-script under ``backend/app/analysis/data/sample_ndvi/``. The sample is used
-by the "sample" imagery provider (the default); the "sentinel2" provider
-retrieves imagery live over the same STAC service.
+masking) and NDWI for water detection (B03 = GREEN, B08 = NIR). Live
+retrieval over the network is not always possible during an SIH demo or in
+CI, so the repo ships a small real sample produced by this script under
+``backend/app/analysis/data/sample_ndvi/``. The sample is used by the
+"sample" imagery provider (the default); the "sentinel2" provider retrieves
+imagery live over the same STAC service.
 
 Data source (free, no API key)
 ------------------------------
@@ -32,6 +33,12 @@ Usage
 -----
     python scripts/fetch_sentinel2_sample.py            # default AOI (Punjab)
     python scripts/fetch_sentinel2_sample.py --center-lat 19.076 --center-lng 72.8777 --days 120
+    python scripts/fetch_change_sample.py               # bi-temporal pair (Phase 2E)
+
+The bi-temporal change-detection sample (``sample_change/before|after``) is
+fetched by ``scripts/fetch_change_sample.py``; both observations are cut from
+the same Sentinel-2 tile at the same centre so the pair shares one 10 m UTM
+grid and is pixel-aligned by construction.
 """
 
 import argparse
@@ -70,7 +77,7 @@ def _scene_valid_fraction(red: np.ndarray, nir: np.ndarray, scl: np.ndarray) -> 
 
 
 # Earth Search uses semantic asset names; map our band names onto them.
-ASSET_NAMES = {"B04": "red", "B08": "nir", "SCL": "scl"}
+ASSET_NAMES = {"B02": "blue", "B03": "green", "B04": "red", "B08": "nir", "SCL": "scl"}
 
 
 def _fetch_item_bands(bbox, lookback_days):
@@ -175,7 +182,9 @@ def main() -> int:
         try:
             print(f"Trying scene {item['id']} "
                   f"(cloud {item['properties'].get('eo:cloud_cover')}%) ...")
-            red, t_red, crs, nodata = _read_band_window(assets[names["B04"]]["href"], args.center_lng, args.center_lat, args.pixels)
+            blue, t_blue, _, _ = _read_band_window(assets[names["B02"]]["href"], args.center_lng, args.center_lat, args.pixels)
+            green, t_green, _, _ = _read_band_window(assets[names["B03"]]["href"], args.center_lng, args.center_lat, args.pixels)
+            red, t_red, _, _ = _read_band_window(assets[names["B04"]]["href"], args.center_lng, args.center_lat, args.pixels)
             nir, t_nir, _, _ = _read_band_window(assets[names["B08"]]["href"], args.center_lng, args.center_lat, args.pixels)
             scl, t_scl, _, _ = _read_band_window(assets[names["SCL"]]["href"], args.center_lng, args.center_lat, args.pixels // 2)
 
@@ -190,10 +199,14 @@ def main() -> int:
                 continue
 
             paths = {
+                "B02": args.out_dir / "B02.tif",
+                "B03": args.out_dir / "B03.tif",
                 "B04": args.out_dir / "B04.tif",
                 "B08": args.out_dir / "B08.tif",
                 "SCL": args.out_dir / "SCL.tif",
             }
+            _save_band(blue.astype("uint16"), t_blue, crs, nodata, paths["B02"], "B02", item)
+            _save_band(green.astype("uint16"), t_green, crs, nodata, paths["B03"], "B03", item)
             _save_band(red.astype("uint16"), t_red, crs, nodata, paths["B04"], "B04", item)
             _save_band(nir.astype("uint16"), t_nir, crs, nodata, paths["B08"], "B08", item)
             _save_band(scl.astype("uint8"), t_scl, crs, 0, paths["SCL"], "SCL", item)
@@ -213,7 +226,7 @@ def main() -> int:
                 "epsg": item["properties"].get("proj:epsg"),
                 "crs": str(crs),
                 "pixel_size_m": 10,
-                "bands": ["B04 (RED)", "B08 (NIR)", "SCL (cloud mask)"],
+                "bands": ["B02 (BLUE 10m)", "B03 (GREEN 10m)", "B04 (RED 10m)", "B08 (NIR 10m)", "SCL (cloud mask)"],
                 "scale_factor": scale,
                 "center_lat": args.center_lat,
                 "center_lng": args.center_lng,
@@ -229,7 +242,7 @@ def main() -> int:
             for name, p in paths.items():
                 print(f"  wrote {p.relative_to(Path.cwd())} ({p.stat().st_size // 1024} KB)")
             print(f"  sample NDVI mean: {mean:.4f}")
-            print("Sample dataset ready.")
+            print("Sample dataset ready (includes B03 GREEN for NDWI water detection).")
             return 0
         except Exception as exc:  # noqa: BLE001 - surface which scene failed
             print(f"  failed: {exc!r}")

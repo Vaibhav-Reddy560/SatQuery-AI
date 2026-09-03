@@ -1,0 +1,25 @@
+{
+  "source": "Earth Search STAC (https://earth-search.aws.element84.com) — sentinel-2-l2a",
+  "authentication": "none",
+  "license": "Copernicus Programme terms — free to use",
+  "scene_id": "S2B_43RDQ_20251202_0_L2A",
+  "acquisition_datetime": "2025-12-02T05:50:20.414000Z",
+  "cloud_cover_percent": 0.011679,
+  "epsg": 32643,
+  "crs": "EPSG:32643",
+  "pixel_size_m": 10,
+  "bands": [
+    "B02 (BLUE 10m)",
+    "B03 (GREEN 10m)",
+    "B04 (RED 10m)",
+    "B08 (NIR 10m)",
+    "SCL (cloud mask)"
+  ],
+  "scale_factor": 0.0001,
+  "center_lat": 31.1162,
+  "center_lng": 75.009229,
+  "pixels": 224,
+  "region": "Harike Wetland, Sutlej–Beas confluence, Punjab, India",
+  "temporal_role": "before",
+  "note": "Dry season observation (post-kharif harvest) paired with the Aug 2026 monsoon sample."
+}

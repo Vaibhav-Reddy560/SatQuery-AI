@@ -18,6 +18,7 @@ from random import Random
 from typing import Dict, List, Optional
 
 from backend.app.ml.base import ModelBackend
+from backend.app.ml.landcover import LandCoverClassifierBackend
 from backend.app.services.gis_processor import (
     calculate_polygon_area_km2,
     calculate_polyline_distance_km,
@@ -203,48 +204,6 @@ class WaterDetectionMockBackend(MockModelBackend):
         return DetectionPayload(features=features)
 
 
-# Fixed land-cover class palette with base percentages (kept small & typed).
-_LAND_CLASSES = [
-    {"name": "Cropland", "code": "211", "color": "#22c55e", "base": 38.0},
-    {"name": "Built-up Area", "code": "121", "color": "#3b82f6", "base": 16.0},
-    {"name": "Tree Cover", "code": "311", "color": "#15803d", "base": 14.0},
-    {"name": "Bare Soil", "code": "333", "color": "#d97706", "base": 12.0},
-    {"name": "Water Bodies", "code": "512", "color": "#06b6d4", "base": 9.0},
-    {"name": "Grassland", "code": "321", "color": "#84cc16", "base": 7.0},
-    {"name": "Wetland", "code": "411", "color": "#0891b2", "base": 4.0},
-]
-
-
-class LandCoverMockBackend(MockModelBackend):
-    """Deterministic mock land-cover classifier with a ~100% breakdown."""
-
-    task = TASK_LAND_COVER
-    model_name = "satquery-mock-land-cover"
-    model_version = "0.1.0"
-
-    def predict(self, request: AnalysisRequest) -> LandCoverPayload:
-        rng = _rng(request, "land_cover")
-        total_area = _round(rng.uniform(150.0, 500.0), 1)
-        raw = [
-            {**cls, "pct": cls["base"] + rng.uniform(-6.0, 6.0)}
-            for cls in _LAND_CLASSES
-        ]
-        scale = 100.0 / sum(item["pct"] for item in raw)
-        classes: List[LandCoverClass] = []
-        for item in raw:
-            pct = _round(item["pct"] * scale, 1)
-            classes.append(
-                LandCoverClass(
-                    name=item["name"],
-                    code=item["code"],
-                    percentage=pct,
-                    area_km2=_round(total_area * pct / 100.0, 2),
-                    color=item["color"],
-                )
-            )
-        return LandCoverPayload(total_area_km2=total_area, classes=classes)
-
-
 _CHANGE_DESCRIPTIONS: Dict[str, List[str]] = {
     "gain": ["New construction footprint", "Urban infrastructure expansion", "New plantation area"],
     "loss": ["Vegetation cover decrease", "Forest clearing detected", "Wetland area reduction"],
@@ -418,7 +377,7 @@ model_registry = ModelRegistry()
 # payloads, and no weights or network are involved).
 model_registry.register(ObjectDetectionMockBackend())
 model_registry.register(WaterDetectionMockBackend())
-model_registry.register(LandCoverMockBackend())
+model_registry.register(LandCoverClassifierBackend())
 model_registry.register(ChangeDetectionMockBackend())
 model_registry.register(VegetationMockBackend())
 model_registry.register(MeasurementMockBackend())

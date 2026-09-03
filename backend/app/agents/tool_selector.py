@@ -8,6 +8,7 @@ Phase 1 mapping (tool ids match the analysis service registry):
     land_cover             -> land_cover_classifier
     change_detection       -> change_detector
     vegetation_analysis    -> vegetation_analyzer
+    visual_interpretation  -> visual_analyzer (real vision-language model)
     measure_area           -> geospatial_measurement (parameters: area)
     measure_distance       -> geospatial_measurement (parameters: distance/perimeter)
 
@@ -28,6 +29,7 @@ _INTENT_TO_TOOL: Dict[IntentType, str] = {
     IntentType.land_cover: "land_cover_classifier",
     IntentType.change_detection: "change_detector",
     IntentType.vegetation_analysis: "vegetation_analyzer",
+    IntentType.visual_interpretation: "visual_analyzer",
     IntentType.measure_area: "geospatial_measurement",
     IntentType.measure_distance: "geospatial_measurement",
 }

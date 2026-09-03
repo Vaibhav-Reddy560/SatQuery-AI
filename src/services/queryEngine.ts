@@ -82,12 +82,23 @@ function formatResponse(result: AnalysisOutput, intent: QueryIntent): string {
     case "detection":
       return formatDetectionResponse(result);
     case "change":
+      // Backend bi-temporal results carry a rich summary naming both
+      // observations; the local mock engine formats its own response.
+      if (result.beforeImagery || result.afterImagery || result.changeStats) {
+        return result.summaryText;
+      }
       return formatChangeResponse(result);
     case "land_cover":
+      // Backend ML results carry a rich model + provenance summary; the
+      // local mock engine formats its own deterministic response.
+      if (result.model || result.imagery || result.mode === "live") {
+        return result.summaryText;
+      }
       return formatLandCoverResponse(result);
     case "vegetation":
-      // Forward-compat: backend vegetation results carry their own summary;
-      // the local mock engine never produces this kind.
+    case "water":
+      // Forward-compat: backend vegetation/water results carry their own
+      // rich summary; the local mock engine never produces these kinds.
       return result.summaryText;
     case "measurement":
       return formatMeasurementResponse(result);
@@ -103,18 +114,39 @@ function getAttachments(result: AnalysisOutput): QueryResponse["attachments"] {
       ];
     case "change":
       return [
-        { type: "map_region", label: "Change detection overlay", confidence: result.confidence },
-        { type: "data", label: `${result.changes.length} changes identified` },
+        {
+          type: "map_region",
+          label: result.overlay ? "Real delta-NDVI change overlay (Sentinel-2)" : "Change detection overlay",
+          confidence: result.confidence,
+        },
+        { type: "data", label: `${result.changes.length} change classes` },
       ];
     case "land_cover":
       return [
-        { type: "image", label: "Land cover classification map", confidence: result.confidence },
+        {
+          type: "map_region",
+          label: result.overlay ? "Real ML land-cover classification (Sentinel-2)" : "Land cover classification map",
+          confidence: result.confidence,
+        },
         { type: "data", label: `${result.classes.length} land classes` },
       ];
     case "vegetation":
       return [
-        { type: "map_region", label: "Vegetation status zones", confidence: result.confidence },
+        {
+          type: "map_region",
+          label: result.overlay ? "Real NDVI overlay (Sentinel-2)" : "Vegetation status zones",
+          confidence: result.confidence,
+        },
         { type: "data", label: "Vegetation health summary" },
+      ];
+    case "water":
+      return [
+        {
+          type: "map_region",
+          label: result.overlay ? "Real NDWI water mask (Sentinel-2)" : "Water body zones",
+          confidence: result.confidence,
+        },
+        { type: "data", label: "Water statistics" },
       ];
     case "measurement":
       return [

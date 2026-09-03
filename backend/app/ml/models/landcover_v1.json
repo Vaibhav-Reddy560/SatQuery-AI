@@ -1,0 +1,127 @@
+{
+  "model_name": "satquery-landcover-randomforest-v1",
+  "model_version": "1.0.0",
+  "model_kind": "ml",
+  "classifier": "scikit-learn RandomForestClassifier",
+  "classes": {
+    "water": {
+      "code": "water",
+      "color": "#2563eb"
+    },
+    "vegetation": {
+      "code": "vegetation",
+      "color": "#22c55e"
+    },
+    "built_up": {
+      "code": "built_up",
+      "color": "#dc2626"
+    },
+    "bare": {
+      "code": "bare",
+      "color": "#ca8a04"
+    }
+  },
+  "features": [
+    "B03 green",
+    "B04 red",
+    "B08 nir",
+    "NDVI",
+    "NDWI"
+  ],
+  "sentinel2_bands": [
+    "B03 (GREEN)",
+    "B04 (RED)",
+    "B08 (NIR)"
+  ],
+  "training": {
+    "label_source": "ESA WorldCover 10m 2021 v200 (open, Copernicus Programme)",
+    "regions": [
+      {
+        "feature_scene": "S2B_43RDQ_20260829_0_L2A",
+        "worldcover_tile": "N30E075",
+        "windows": [
+          [
+            31.15,
+            75.02,
+            0.03
+          ],
+          [
+            30.7,
+            75.05,
+            0.03
+          ],
+          [
+            30.7,
+            75.08,
+            0.03
+          ],
+          [
+            31.3,
+            75.08,
+            0.03
+          ],
+          [
+            31.45,
+            75.05,
+            0.03
+          ],
+          [
+            31.6,
+            75.05,
+            0.03
+          ]
+        ]
+      },
+      {
+        "feature_scene": "S2A_42RXQ_20260809_0_L2A",
+        "worldcover_tile": "N24E069",
+        "windows": [
+          [
+            26.9,
+            70.5,
+            0.04
+          ],
+          [
+            26.7,
+            70.9,
+            0.04
+          ],
+          [
+            26.5,
+            70.7,
+            0.04
+          ]
+        ]
+      }
+    ],
+    "trained_at": "2026-09-03T09:10:07.377808+00:00",
+    "train_pixels": 56928,
+    "val_pixels": 14232,
+    "random_state": 42,
+    "holdout_accuracy": 0.7888,
+    "holdout_balanced_accuracy": 0.7835,
+    "per_class_metrics": {
+      "water": {
+        "precision": 0.6474,
+        "recall": 0.741,
+        "f1": 0.691
+      },
+      "vegetation": {
+        "precision": 0.7708,
+        "recall": 0.5825,
+        "f1": 0.6635
+      },
+      "built_up": {
+        "precision": 0.8464,
+        "recall": 0.8528,
+        "f1": 0.8496
+      },
+      "bare": {
+        "precision": 0.8285,
+        "recall": 0.9577,
+        "f1": 0.8885
+      }
+    }
+  },
+  "notes": "Classical ML (random forest) trained on real open data across two regions (Punjab wetland/cropland + Thar desert). Four coarse classes only; no fake or fine-grained claims. Runtime is fully offline using the shipped artifact."
+}

@@ -14,9 +14,9 @@ Full Phase 1 pipeline:
 Returns an ``AgentRun`` carrying everything the frontend AgentTrace needs:
 intent, confidence, plan, selected tool, result, explanation and a step
 trace. Services stamp their results with an honest ``mode``: ``mock`` for
-the deterministic demo backends (object/water/land-cover/change/measurement)
-and ``live`` for the real NDVI vegetation pipeline (Sentinel-2 imagery). The
-trace reflects whichever mode actually ran.
+the deterministic demo backends (object/land-cover/change/measurement) and
+``live`` for the real satellite pipelines (NDVI vegetation and NDWI water,
+Sentinel-2 imagery). The trace reflects whichever mode actually ran.
 """
 
 import time
@@ -98,6 +98,24 @@ class QueryOrchestrator:
                 result = service.analyze(plan)
                 if result.mode == "mock":
                     trace.append("Executed analysis (deterministic mock model backend)")
+                elif getattr(result, "model_kind", None) == "vlm":
+                    trace.append(
+                        "Executed analysis (live vision-language model: SmolVLM "
+                        "on real Sentinel-2 RGB pixels, no simulation)"
+                    )
+                elif getattr(result, "model_kind", None) == "ml":
+                    trace.append(
+                        "Executed analysis (live ML pipeline: trained classifier "
+                        "on real satellite imagery, no simulation)"
+                    )
+                elif (
+                    result.kind == "change"
+                    and getattr(result, "change_method", None) == "delta_ndvi"
+                ):
+                    trace.append(
+                        "Executed analysis (live change-detection algorithm on "
+                        "two real Sentinel-2 observations, no simulation)"
+                    )
                 else:
                     trace.append(
                         f"Executed analysis ({result.mode} pipeline: real "

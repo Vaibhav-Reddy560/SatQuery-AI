@@ -57,9 +57,14 @@ def _attachments_for_run(run: AgentRun) -> List[Dict[str, object]]:
             {"type": "data", "label": "Detection statistics"},
         ]
     if kind == "change":
+        overlay_label = (
+            "Real delta-NDVI change overlay (Sentinel-2)"
+            if getattr(result, "overlay", None) is not None
+            else "Change detection overlay"
+        )
         return [
-            {"type": "map_overlay", "label": "Change detection overlay", "confidence": result.confidence},
-            {"type": "data", "label": f"{len(result.changes)} changes identified"},
+            {"type": "map_overlay", "label": overlay_label, "confidence": result.confidence},
+            {"type": "data", "label": f"{len(result.changes)} change classes"},
         ]
     if kind == "land_cover":
         return [
@@ -73,6 +78,19 @@ def _attachments_for_run(run: AgentRun) -> List[Dict[str, object]]:
         return [
             {"type": "map_overlay", "label": overlay_label, "confidence": result.confidence},
             {"type": "data", "label": "Vegetation health summary"},
+        ]
+    if kind == "water":
+        overlay_label = (
+            "Real NDWI water mask (Sentinel-2)" if result.overlay is not None else "Water body zones"
+        )
+        return [
+            {"type": "map_overlay", "label": overlay_label, "confidence": result.confidence},
+            {"type": "data", "label": "Water statistics"},
+        ]
+    if kind == "visual":
+        return [
+            {"type": "image", "label": "Analysed Sentinel-2 scene (true-colour RGB)"},
+            {"type": "data", "label": "Vision-language interpretation"},
         ]
     if kind == "measurement":
         return [
@@ -90,7 +108,9 @@ def _suggested_actions_for_run(run: AgentRun) -> List[str]:
         "change": ["Show changes on map", "Generate change report", "Zoom to changes"],
         "land_cover": ["View class breakdown", "Export classification", "Compare regions"],
         "vegetation": ["Show NDVI overlay on map", "Show zones on map", "Compare with baseline", "Export report"],
+        "water": ["Show water overlay on map", "Export water map", "Measure water area"],
         "measurement": ["Save measurement", "Run land cover over AOI", "Clear selection"],
+        "visual": ["Run NDVI vegetation analysis over this scene", "Detect water in this scene", "Classify land cover here"],
     }
     return by_kind.get(kind, ["Show on map", "Export results"])
 
@@ -101,14 +121,20 @@ def _query_response_from_run(run: AgentRun, session_id: str, query_id: str) -> Q
 
     if result is not None:
         payload: Dict[str, object] = result.model_dump()
-        confidence = result.confidence
+        # Analysis services always set a confidence; a vision-language result
+        # has no calibrated confidence, so fall back to the intent-detection
+        # confidence rather than inventing a model confidence.
+        confidence = result.confidence if result.confidence is not None else run.intent_confidence
         analysis_kind = result.kind
         location = result.location
     else:
+        # The tool was still selected even when the analysis itself failed
+        # (e.g. AOI outside the sample coverage) — report it instead of None
+        # so the client knows which pipeline ran.
         payload = {
             "kind": "general",
             "mode": "mock",
-            "tool_id": None,
+            "tool_id": (run.selected_tool.tool_id if run.selected_tool else None),
             "summary_text": run.explanation,
             "location": (plan.location if plan else None),
             "centre": (plan.centre if plan else None),

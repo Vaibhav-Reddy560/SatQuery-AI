@@ -129,6 +129,17 @@ _RULES: List[_Rule] = [
         ],
     ),
     _Rule(
+        IntentType.visual_interpretation, "visual_interpretation", 0.9,
+        [
+            r"\b(what\s+do\s+(?:you|i|we)\s+see|what\s+(?:can|does)\s+you\s+see|describe|describe\s+what)\b.*\b(image|imagery|scene|satellite|aerial|photo|picture|region|area)\b",
+            r"\b(image|scene|satellite\s*imagery)\b.*\b(show|depict|contain|appear|look)\b",
+            r"\bdoes\s+the\s+image\b.*\b(contain|show|appear|look)\b",
+            r"\b(describe|tell\s+me\s+about)\b.*\b(landscape|terrain|land\s*cover|appearance)\b",
+            r"\b(what|how)\b.*\b(look|appear|see)\b.*\b(from\s+above|in\s+this|visible)\b",
+            r"\b(describe|interpret|analyse|analyze)\b.*\b(what\s+is\s+visible|the\s+scene|this\s+image)\b",
+        ],
+    ),
+    _Rule(
         IntentType.general_satellite_question, "general_satellite_question", 0.62,
         [
             r"\b(analy|analyse|describe|overview|summari)\w*\b.*\b(satellite|imagery|region|area|scene|image|earth)\b",

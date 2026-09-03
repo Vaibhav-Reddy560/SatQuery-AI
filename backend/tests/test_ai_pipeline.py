@@ -122,8 +122,15 @@ def test_tool_selection_for_measurement_sets_type():
 def test_tool_selection_none_for_non_analysis_intents():
     unknown = tool_selector.select(intent_detector.classify("What is the capital of France?"))
     assert unknown is None
-    general = tool_selector.select(intent_detector.classify("Describe this satellite region"))
+    general = tool_selector.select(intent_detector.classify("What can you tell me about this region?"))
     assert general is None
+
+
+def test_visual_interpretation_selects_visual_analyzer_tool():
+    # Phase 2G: asking the assistant to look at actual image pixels routes to
+    # the real vision-language model tool, not to the canned general answer.
+    visual = tool_selector.select(intent_detector.classify("Describe this satellite region"))
+    assert visual is not None and visual.tool_id == "visual_analyzer"
 
 
 # ── 3. Planner ─────────────────────────────────────────────────────────────
@@ -178,7 +185,7 @@ def test_planner_accepts_aoi_geometry_from_frontend():
     "query,expected_kind",
     [
         ("Find buildings", "detection"),
-        ("Find water bodies", "detection"),
+        ("Find water bodies", "water"),
         ("Classify land cover", "land_cover"),
         ("What changed between 2024 and 2026?", "change"),
         ("Analyze vegetation", "vegetation"),
@@ -189,8 +196,8 @@ def test_orchestrator_produces_typed_results(query: str, expected_kind: str):
     run = query_orchestrator.run(query)
     assert run.result is not None
     assert run.result.kind == expected_kind
-    # Phase 1 mock services report "mock"; the Phase 2 vegetation service now
-    # reports "live" (real Sentinel-2 NDVI over the bundled sample scene).
+    # Phase 1 mock services report "mock"; the Phase 2 real satellite services
+    # (NDVI vegetation, NDWI water) report "live" over the bundled sample scene.
     assert run.result.mode in ("mock", "live")
     assert run.explanation and run.trace
     # Every agent run exposes the fields the frontend AgentTrace displays.
@@ -213,8 +220,11 @@ def test_orchestrator_returns_agentrun_shape():
 
 
 def test_orchestrator_is_deterministic():
-    first = query_orchestrator.run("Find water bodies near Mumbai", context=AgentContext(centre=[72.8777, 19.076]))
-    second = query_orchestrator.run("Find water bodies near Mumbai", context=AgentContext(centre=[72.8777, 19.076]))
+    # Centre inside the bundled sample coverage (Harike wetland scene) so the
+    # real NDWI pipeline runs; the sample provider is fully deterministic.
+    centre = [75.009229, 31.1162]
+    first = query_orchestrator.run("Find water bodies near Mumbai", context=AgentContext(centre=centre))
+    second = query_orchestrator.run("Find water bodies near Mumbai", context=AgentContext(centre=centre))
     assert first.result is not None and second.result is not None
     assert first.result.model_dump() == second.result.model_dump()
     assert first.explanation == second.explanation

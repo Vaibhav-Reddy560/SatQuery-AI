@@ -41,6 +41,11 @@ class IntentType(str, Enum):
     vegetation_analysis = "vegetation_analysis"
     measure_area = "measure_area"
     measure_distance = "measure_distance"
+    # Phase 2G: questions that ask the assistant to look AT actual image
+    # pixels ("what do you see / describe the visible landscape / does the
+    # image contain …"). Routed to the vision-language model, NOT the canned
+    # general-answer path (which keeps ``general_satellite_question``).
+    visual_interpretation = "visual_interpretation"
     general_satellite_question = "general_satellite_question"
     unknown = "unknown"
 
@@ -174,11 +179,40 @@ class ChangeItem(BaseModel):
     geometry: Optional[PointGeometry] = None
 
 
+# Default |delta_NDVI| change threshold (NDVI units) for bi-temporal change
+# detection — conservative NDVI-differencing breakpoint, documented in
+# backend/app/analysis/change.py and configurable per request.
+DEFAULT_CHANGE_THRESHOLD = 0.15
+
+
 class ChangePayload(BaseModel):
     before_date: str
     after_date: str
     total_area_changed_km2: float
     changes: List[ChangeItem]
+
+
+class ChangeStats(BaseModel):
+    """
+    Real statistics over the valid comparison pixels of a bi-temporal change
+    analysis (pixels cloud-free in BOTH observations).
+
+    Percentages are shares of the valid comparison pixels; areas use the
+    raster's actual resolution.
+    """
+    valid_pixel_count: int
+    unchanged_pixel_count: int
+    changed_pixel_count: int
+    loss_pixel_count: int
+    gain_pixel_count: int
+    unchanged_percentage: float = Field(..., ge=0.0, le=100.0)
+    changed_percentage: float = Field(..., ge=0.0, le=100.0)
+    loss_percentage: float = Field(..., ge=0.0, le=100.0)
+    gain_percentage: float = Field(..., ge=0.0, le=100.0)
+    total_area_km2: float
+    changed_area_km2: float
+    loss_area_km2: float
+    gain_area_km2: float
 
 
 class VegetationZone(BaseModel):
@@ -208,6 +242,23 @@ class NdviStats(BaseModel):
     valid_pixel_percentage: float = Field(..., ge=0.0, le=100.0)
 
 
+class NdwiStats(BaseModel):
+    """
+    Real statistics over valid (non-masked) NDWI pixels only.
+
+    ``water_pixel_percentage`` is the share of VALID pixels classified as
+    water (NDWI >= threshold), mirroring how vegetation zone fractions are
+    reported.
+    """
+    min: float
+    max: float
+    mean: float
+    median: float
+    std: Optional[float] = None
+    valid_pixel_percentage: float = Field(..., ge=0.0, le=100.0)
+    water_pixel_percentage: float = Field(..., ge=0.0, le=100.0)
+
+
 class ImageryMetadata(BaseModel):
     """Provenance of the imagery an analysis ran on."""
     provider: str
@@ -231,7 +282,7 @@ class RasterOverlay(BaseModel):
     bounds: List[float] = Field(..., description="[west, south, east, north]")
     label: str = "Analysis overlay"
     opacity: float = Field(0.75, ge=0.0, le=1.0)
-    colormap: Literal["ndvi", "classes"] = "ndvi"
+    colormap: Literal["ndvi", "ndwi", "classes"] = "ndvi"
 
 
 class MeasurementPayload(BaseModel):
@@ -251,11 +302,18 @@ class AnalysisResultBase(BaseModel):
     tool_id: str
     location: str
     centre: List[float] = Field(..., description="[lng, lat]")
-    confidence: float = Field(..., ge=0.0, le=1.0)
     model: str
     model_version: str
     mode: Literal["mock", "live"] = "mock"
     summary_text: str
+    # ``confidence`` is OPTIONAL and defaults to None: radiometric/ML
+    # services always set a real confidence, but a VLM has no calibrated
+    # confidence, so visual results honestly omit the field.
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    # Honest processing-method label: "algorithm" for radiometric math
+    # (NDVI/NDWI), "ml" for trained models, "vlm" for a genuine multimodal
+    # vision-language model that received image pixels, None when unknown.
+    model_kind: Optional[Literal["algorithm", "ml", "vlm"]] = None
 
 
 class DetectionResult(AnalysisResultBase):
@@ -269,6 +327,10 @@ class LandCoverResult(AnalysisResultBase):
     kind: Literal["land_cover"] = "land_cover"
     total_area_km2: float
     classes: List[LandCoverClass]
+    # Phase 2D real ML classification outputs.
+    model_inputs: List[str] = Field(default_factory=list, description="Input features")
+    imagery: Optional[ImageryMetadata] = None
+    overlay: Optional[RasterOverlay] = None
 
 
 class ChangeDetectionResult(AnalysisResultBase):
@@ -277,6 +339,14 @@ class ChangeDetectionResult(AnalysisResultBase):
     after_date: str
     total_area_changed_km2: float
     changes: List[ChangeItem]
+    # Phase 2E real multi-temporal outputs (all optional so mock output stays
+    # valid). The algorithm is delta-NDVI radiometric math — never ML.
+    before_imagery: Optional[ImageryMetadata] = None
+    after_imagery: Optional[ImageryMetadata] = None
+    change_stats: Optional[ChangeStats] = None
+    threshold: float = DEFAULT_CHANGE_THRESHOLD
+    change_method: str = "delta_ndvi"
+    overlay: Optional[RasterOverlay] = None
 
 
 class VegetationResult(AnalysisResultBase):
@@ -291,6 +361,24 @@ class VegetationResult(AnalysisResultBase):
     overlay: Optional[RasterOverlay] = None
 
 
+class WaterResult(AnalysisResultBase):
+    """
+    Real Sentinel-2 water analysis (Phase 2C).
+
+    NDWI = (GREEN - NIR) / (GREEN + NIR) with GREEN = B03, NIR = B08;
+    pixels with NDWI >= ``threshold`` are classified as water. The
+    algorithm is radiometric (not an ML model); ``mode`` stays "live" for
+    both the bundled sample and the live STAC provider.
+    """
+    kind: Literal["water"] = "water"
+    water_area_km2: float
+    total_area_km2: float
+    ndwi_stats: Optional[NdwiStats] = None
+    threshold: float = 0.0
+    imagery: Optional[ImageryMetadata] = None
+    overlay: Optional[RasterOverlay] = None
+
+
 class MeasurementResult(AnalysisResultBase):
     kind: Literal["measurement"] = "measurement"
     measurement_type: Literal["area", "distance", "perimeter"]
@@ -299,13 +387,43 @@ class MeasurementResult(AnalysisResultBase):
     points: List[List[float]]
 
 
+class VisualResult(AnalysisResultBase):
+    """
+    Genuine vision-language interpretation of an actual satellite image
+    (Phase 2G).
+
+    The answer is produced by a real multimodal model that received the
+    actual RGB pixels of the scene — never by metadata, NDVI values or a
+    text-only model. It is general visual interpretation only: it is NOT a
+    calibrated remote-sensing measurement, which is exactly why no
+    ``confidence`` is reported (no calibrated confidence exists) and why the
+    deterministic/ML analysis services stay authoritative for quantitative
+    questions. ``context_supplied`` records whether structured analysis
+    context was injected into the prompt.
+    """
+    kind: Literal["visual"] = "visual"
+    answer: str
+    question: str = ""
+    imagery: Optional[ImageryMetadata] = None
+    context_supplied: bool = False
+    context_source: str = "none"
+    image_size: Optional[str] = None
+    inference_latency_ms: Optional[float] = None
+    device: Optional[str] = None
+    # Optional true-colour RGB preview of the exact pixels the model saw
+    # (data URL), so the chat UI can display the analysed scene.
+    image_data_url: Optional[str] = None
+
+
 AnalysisResult = Annotated[
     Union[
         DetectionResult,
         LandCoverResult,
         ChangeDetectionResult,
         VegetationResult,
+        WaterResult,
         MeasurementResult,
+        VisualResult,
     ],
     Field(discriminator="kind"),
 ]

@@ -62,6 +62,14 @@ _SCL_MASKED = {0, 1, 3, 8, 9, 10, 11}
 
 SAMPLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sample_ndvi")
 
+# Bi-temporal change-detection sample: two REAL Sentinel-2 observations of
+# the same Harike-wetland AOI at different dates, stored on the identical
+# 10 m UTM grid so the pair is pixel-aligned by construction.
+#   before/ = S2B_43RDQ_20251202 (dry season, cloud 0%)
+#   after/  = S2B_43RDQ_20260829 (monsoon, cloud ~9.5%)
+# See scripts/fetch_change_sample.py for provenance.
+SAMPLE_CHANGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sample_change")
+
 # When the request carries neither an explicit centre nor an AOI geometry the
 # planner's default "India" centre is treated as "no AOI specified".
 DEFAULT_INDIA_CENTRE = (78.9629, 20.5937)
@@ -119,7 +127,7 @@ class EmptyScene(ImageryError):
 
 @dataclass
 class BandData:
-    """Real RED/NIR reflectance + cloud/valid mask + provenance for one AOI."""
+    """Real RED/GREEN/NIR reflectance + cloud/valid mask + provenance."""
 
     red: np.ndarray            # float32 reflectance 0..1 (masked pixels: NaN)
     nir: np.ndarray            # float32 reflectance 0..1 (masked pixels: NaN)
@@ -128,6 +136,27 @@ class BandData:
     resolution_m: float
     metadata: ImageryMetadata
     centre_lnglat: Tuple[float, float] = (0.0, 0.0)
+    # GREEN (Sentinel-2 B03, 10 m) — used by the NDWI water pipeline. Fetched
+    # alongside RED/NIR so the providers stay interchangeable; the NDVI
+    # pipeline simply never reads it. Optional so tests can construct a
+    # BandData without imagery that carries no green band.
+    green: Optional[np.ndarray] = None
+    # BLUE (Sentinel-2 B02, 10 m) — used to render true-colour RGB previews
+    # for the vision-language pipeline (B04 RED + B03 GREEN + B02 BLUE).
+    # Optional like GREEN so band-less test fixtures stay constructible.
+    blue: Optional[np.ndarray] = None
+    # Georeferencing of the returned grid (populated by providers; used by
+    # bi-temporal change detection to verify/restore spatial alignment).
+    crs: Optional[str] = None
+    transform: Optional[Tuple[float, float, float, float, float, float]] = None
+
+
+@dataclass
+class TemporalPair:
+    """Two real observations of the same AOI at different acquisition dates."""
+
+    before: BandData
+    after: BandData
 
 
 class ImageryProvider(Protocol):
@@ -136,6 +165,10 @@ class ImageryProvider(Protocol):
     provider_name: str
 
     def fetch(self, request: AnalysisRequest) -> BandData:
+        ...
+
+    def fetch_pair(self, request: AnalysisRequest) -> TemporalPair:
+        """Two observations of the same AOI: before (older) and after (newer)."""
         ...
 
 
@@ -204,8 +237,9 @@ class SampleSentinel2Provider:
 
     provider_name = "sample"
 
-    def __init__(self, directory: str = SAMPLE_DIR) -> None:
+    def __init__(self, directory: str = SAMPLE_DIR, temporal_directory: Optional[str] = None) -> None:
         self.directory = directory
+        self.temporal_directory = temporal_directory or SAMPLE_CHANGE_DIR
         metadata_path = os.path.join(directory, "metadata.json")
         if not os.path.exists(metadata_path):
             raise ImageryError(
@@ -216,27 +250,34 @@ class SampleSentinel2Provider:
             )
         with open(metadata_path, "r", encoding="utf-8") as fh:
             self.metadata: dict = json.load(fh)
-        self._band_paths = {
+        self._band_paths = self._band_paths_for(directory)
+
+    @staticmethod
+    def _band_paths_for(directory: str) -> dict:
+        paths = {
+            "B02": os.path.join(directory, "B02.tif"),
+            "B03": os.path.join(directory, "B03.tif"),
             "B04": os.path.join(directory, "B04.tif"),
             "B08": os.path.join(directory, "B08.tif"),
             "SCL": os.path.join(directory, "SCL.tif"),
         }
-        for name, path in self._band_paths.items():
+        for name, path in paths.items():
             if not os.path.exists(path):
                 raise MissingBand(
                     f"Sample band {name} not found at {path}. "
                     f"Run: python scripts/fetch_sentinel2_sample.py"
                 )
+        return paths
 
     def sample_bounds(self) -> Tuple[float, float, float, float]:
-        """Lng/lat coverage of the bundled sample."""
-        lat = float(self.metadata.get("center_lat", 0.0))
-        lng = float(self.metadata.get("center_lng", 0.0))
-        pixels = float(self.metadata.get("pixels", 224))
-        res = float(self.metadata.get("pixel_size_m", 10))
-        half_lat = pixels * res / 2.0 / 111320.0
-        half_lng = pixels * res / 2.0 / (111320.0 * max(0.2, float(np.cos(np.radians(lat)))))
-        return lng - half_lng, lat - half_lat, lng + half_lng, lat + half_lat
+        """
+        Lng/lat coverage of the bundled sample, taken from the stored band's
+        own georeferencing so a full-scene read returns exactly the stored
+        pixel grid (no off-by-one rows from degree-based round-tripping).
+        """
+        with rasterio.open(self._band_paths["B04"]) as ds:
+            w, s, e, n = transform_bounds(ds.crs, WGS84, *ds.bounds)
+        return w, s, e, n
 
     def fetch(self, request: AnalysisRequest) -> BandData:
         w, s, e, n = self.sample_bounds()
@@ -255,69 +296,153 @@ class SampleSentinel2Provider:
                 )
             bounds = clipped
 
-        red, nir, scl = self._read_window(bounds)
+        return self._read_bands(self.directory, self.metadata, bounds)
+
+    def fetch_pair(self, request: AnalysisRequest) -> TemporalPair:
+        """
+        Two REAL observations of the same AOI from the bundled temporal
+        sample: ``before/`` (dry season, Dec 2025) and ``after/`` (monsoon,
+        Aug 2026). Both are stored on the identical 10 m UTM grid, so the
+        returned pair is pixel-aligned by construction.
+        """
+        before_dir = os.path.join(self.temporal_directory, "before")
+        after_dir = os.path.join(self.temporal_directory, "after")
+        for sub in (before_dir, after_dir):
+            if not os.path.isdir(sub):
+                raise ImageryError(
+                    f"The bi-temporal sample directory {sub} is missing. "
+                    f"Run: python scripts/fetch_change_sample.py"
+                )
+
+        with open(os.path.join(before_dir, "metadata.json"), "r", encoding="utf-8") as fh:
+            before_meta: dict = json.load(fh)
+        with open(os.path.join(after_dir, "metadata.json"), "r", encoding="utf-8") as fh:
+            after_meta: dict = json.load(fh)
+
+        before_paths = self._band_paths_for(before_dir)
+        after_paths = self._band_paths_for(after_dir)
+
+        # Same AOI for both dates. With no explicit AOI, use the sample's own
+        # coverage (identical grid for both scenes).
+        with rasterio.open(before_paths["B04"]) as ds:
+            w, s, e, n = transform_bounds(ds.crs, WGS84, *ds.bounds)
+        aoi = requested_aoi(request)
+        if aoi is None:
+            bounds = (w, s, e, n)
+        else:
+            clipped = intersection(aoi, (w, s, e, n))
+            if clipped is None:
+                raise OutsideSampleAOI(
+                    f"The requested AOI does not overlap the bundled bi-temporal "
+                    f"sample (coverage ~[{w:.3f}, {s:.3f}, {e:.3f}, {n:.3f}]). "
+                    f"Enable the live provider or pick an AOI inside the sample."
+                )
+            bounds = clipped
+
+        before = self._read_bands(before_dir, before_meta, bounds, band_paths=before_paths)
+        after = self._read_bands(after_dir, after_meta, bounds, band_paths=after_paths)
+        return TemporalPair(before=before, after=after)
+
+    def _read_bands(
+        self,
+        directory: str,
+        metadata: dict,
+        bounds: Tuple[float, float, float, float],
+        band_paths: Optional[dict] = None,
+    ) -> BandData:
+        paths = band_paths or self._band_paths
+        blue, green, red, nir, scl = self._read_window(paths, bounds)
         cloud = np.isin(scl, list(_SCL_MASKED))
         valid = (red > 0) & (nir > 0) & (~cloud)
 
+        blue_f = blue.astype(np.float32) * SCALE_FACTOR
         red_f = red.astype(np.float32) * SCALE_FACTOR
+        green_f = green.astype(np.float32) * SCALE_FACTOR
         nir_f = nir.astype(np.float32) * SCALE_FACTOR
+        blue_f[~valid] = np.nan
         red_f[~valid] = np.nan
+        green_f[~valid] = np.nan
         nir_f[~valid] = np.nan
 
         meta = ImageryMetadata(
             provider="sample (bundled Sentinel-2 L2A cutout)",
             satellite="Sentinel-2",
             sensor="MSI",
-            acquisition_date=self.metadata.get("acquisition_datetime"),
-            resolution_m=float(self.metadata.get("pixel_size_m", 10)),
-            crs=f"EPSG:{self.metadata.get('epsg', '')}",
-            bands=["B04 (RED 10m)", "B08 (NIR 10m)", "SCL (cloud mask)"],
-            scene_id=self.metadata.get("scene_id"),
-            cloud_cover_percent=self.metadata.get("cloud_cover_percent"),
+            acquisition_date=metadata.get("acquisition_datetime"),
+            resolution_m=float(metadata.get("pixel_size_m", 10)),
+            crs=f"EPSG:{metadata.get('epsg', '')}",
+            bands=["B02 (BLUE 10m)", "B03 (GREEN 10m)", "B04 (RED 10m)", "B08 (NIR 10m)", "SCL (cloud mask)"],
+            scene_id=metadata.get("scene_id"),
+            cloud_cover_percent=metadata.get("cloud_cover_percent"),
             processing_method=(
                 "Sentinel-2 L2A surface reflectance (uint16 x10000); "
                 "SCL cloud masking; sample provider (offline)."
             ),
         )
+        # Georeferencing of the ACTUAL returned grid: the window that the
+        # AOI clips out of the stored file (not the full-file transform), so
+        # change detection can verify two dates sit on the same grid.
+        transform = None
+        with rasterio.open(paths["B04"]) as ds:
+            target = transform_bounds(WGS84, ds.crs, *bounds)
+            win = rasterio.windows.from_bounds(*target, transform=ds.transform)
+            win = win.intersection(rasterio.windows.Window(0, 0, ds.width, ds.height))
+            if win.width >= 1 and win.height >= 1:
+                transform = tuple(round(v, 10) for v in ds.window_transform(win))[:6]
         return BandData(
             red=red_f,
+            green=green_f,
+            blue=blue_f,
             nir=nir_f,
             valid=valid,
             bounds_lnglat=bounds,
-            resolution_m=float(self.metadata.get("pixel_size_m", 10)),
+            resolution_m=float(metadata.get("pixel_size_m", 10)),
             metadata=meta,
-            centre_lnglat=(float(self.metadata.get("center_lng", 0.0)),
-                           float(self.metadata.get("center_lat", 0.0))),
+            centre_lnglat=(float(metadata.get("center_lng", 0.0)),
+                           float(metadata.get("center_lat", 0.0))),
+            crs=meta.crs,
+            transform=transform,
         )
 
-    def _read_window(self, bounds: Tuple[float, float, float, float]):
+    @staticmethod
+    def _read_window(band_paths: dict, bounds: Tuple[float, float, float, float]):
         """Windowed read of the sample bands clipped to `bounds` (lng/lat)."""
         # Sample bands are stored in a projected CRS (UTM); convert the AOI.
-        with rasterio.open(self._band_paths["B04"]) as red_ds:
+        with rasterio.open(band_paths["B02"]) as blue_ds:
+            target = transform_bounds(WGS84, blue_ds.crs, *bounds)
+            win = rasterio.windows.from_bounds(*target, transform=blue_ds.transform)
+            win = win.intersection(rasterio.windows.Window(0, 0, blue_ds.width, blue_ds.height))
+            blue = blue_ds.read(1, window=win)
+        with rasterio.open(band_paths["B03"]) as green_ds:
+            target = transform_bounds(WGS84, green_ds.crs, *bounds)
+            win = rasterio.windows.from_bounds(*target, transform=green_ds.transform)
+            win = win.intersection(rasterio.windows.Window(0, 0, green_ds.width, green_ds.height))
+            green = green_ds.read(1, window=win)
+        with rasterio.open(band_paths["B04"]) as red_ds:
             target = transform_bounds(WGS84, red_ds.crs, *bounds)
             win = rasterio.windows.from_bounds(*target, transform=red_ds.transform)
             win = win.intersection(rasterio.windows.Window(0, 0, red_ds.width, red_ds.height))
             red = red_ds.read(1, window=win)
-        with rasterio.open(self._band_paths["B08"]) as nir_ds:
+        with rasterio.open(band_paths["B08"]) as nir_ds:
             target = transform_bounds(WGS84, nir_ds.crs, *bounds)
             win = rasterio.windows.from_bounds(*target, transform=nir_ds.transform)
             win = win.intersection(rasterio.windows.Window(0, 0, nir_ds.width, nir_ds.height))
             nir = nir_ds.read(1, window=win)
-        with rasterio.open(self._band_paths["SCL"]) as scl_ds:
+        with rasterio.open(band_paths["SCL"]) as scl_ds:
             target = transform_bounds(WGS84, scl_ds.crs, *bounds)
             win = rasterio.windows.from_bounds(*target, transform=scl_ds.transform)
             win = win.intersection(rasterio.windows.Window(0, 0, scl_ds.width, scl_ds.height))
             scl = scl_ds.read(
-                1, window=win, out_shape=red.shape, resampling=Resampling.nearest
+                1, window=win, out_shape=green.shape, resampling=Resampling.nearest
             )
-        return red, nir, scl
+        return blue, green, red, nir, scl
 
 
 # ── Live provider (Element84 Earth Search STAC, no key) ────────────────────
 
 _STAC_URL = "https://earth-search.aws.element84.com/v1/search"
 _COLLECTION = "sentinel-2-l2a"
-_BAND_ASSETS = {"B04": "red", "B08": "nir", "SCL": "scl"}
+_BAND_ASSETS = {"B02": "blue", "B03": "green", "B04": "red", "B08": "nir", "SCL": "scl"}
 
 
 class Sentinel2EarthSearchProvider:
@@ -353,22 +478,28 @@ class Sentinel2EarthSearchProvider:
 
         assets = item.get("assets", {})
         try:
+            blue = self._read_asset(assets["blue"]["href"], aoi)
+            green = self._read_asset(assets["green"]["href"], aoi)
             red = self._read_asset(assets["red"]["href"], aoi)
             nir = self._read_asset(assets["nir"]["href"], aoi)
-            scl = self._read_asset(assets["scl"]["href"], aoi, out_shape=red.shape, nearest=True)
+            scl = self._read_asset(assets["scl"]["href"], aoi, out_shape=green.shape, nearest=True)
         except (KeyError, rasterio.errors.RasterioError) as exc:
             raise ImageryUnavailable(f"Could not read scene bands: {exc}") from exc
 
-        if scl.shape != red.shape:
-            scl = np.resize(scl, red.shape)
+        if scl.shape != green.shape:
+            scl = np.resize(scl, green.shape)
         valid = (red > 0) & (nir > 0) & (~np.isin(scl, list(_SCL_MASKED)))
         if int(valid.sum()) == 0:
             raise EmptyScene(
                 "Scene has no usable (cloud-free, positive-reflectance) pixels for this AOI."
             )
 
+        blue_f = blue.astype(np.float32) * SCALE_FACTOR
+        green_f = green.astype(np.float32) * SCALE_FACTOR
         red_f = red.astype(np.float32) * SCALE_FACTOR
         nir_f = nir.astype(np.float32) * SCALE_FACTOR
+        blue_f[~valid] = np.nan
+        green_f[~valid] = np.nan
         red_f[~valid] = np.nan
         nir_f[~valid] = np.nan
 
@@ -379,7 +510,7 @@ class Sentinel2EarthSearchProvider:
             acquisition_date=item.get("properties", {}).get("datetime"),
             resolution_m=10.0,
             crs=f"EPSG:{item.get('properties', {}).get('proj:epsg', '')}",
-            bands=["B04 (RED 10m)", "B08 (NIR 10m)", "SCL (cloud mask)"],
+            bands=["B02 (BLUE 10m)", "B03 (GREEN 10m)", "B04 (RED 10m)", "B08 (NIR 10m)", "SCL (cloud mask)"],
             scene_id=item.get("id"),
             cloud_cover_percent=item.get("properties", {}).get("eo:cloud_cover"),
             processing_method=(
@@ -387,7 +518,9 @@ class Sentinel2EarthSearchProvider:
             ),
         )
         return BandData(
+            green=green_f,
             red=red_f,
+            blue=blue_f,
             nir=nir_f,
             valid=valid,
             bounds_lnglat=aoi,
@@ -396,17 +529,159 @@ class Sentinel2EarthSearchProvider:
             centre_lnglat=((aoi[0] + aoi[2]) / 2.0, (aoi[1] + aoi[3]) / 2.0),
         )
 
+    def fetch_pair(self, request: AnalysisRequest) -> TemporalPair:
+        """
+        Two REAL Sentinel-2 observations of the same AOI at different dates.
+
+        Searches Earth Search for clear scenes and picks the two most recent
+        distinct observations; if ``request.date_range`` supplies explicit
+        before/after dates, the search is confined to those windows. Both
+        scenes are read over the SAME AOI with the SAME target shape so the
+        returned grids are pixel-aligned (documented in the result metadata).
+        """
+        aoi = requested_aoi(request)
+        if aoi is None:
+            raise NoAoiProvided(
+                "The live Sentinel-2 provider needs an area for change detection: "
+                "select an AOI on the map or mention a location in the query."
+            )
+
+        # Respect an explicit date window when the request carries one.
+        before_window = None
+        after_window = None
+        date_range = request.date_range
+        if date_range and (date_range.from_date or date_range.to_date):
+            # Reject inverted temporal order instead of silently swapping.
+            if date_range.from_date and date_range.to_date and date_range.from_date > date_range.to_date:
+                raise InvalidAOI(
+                    f"Invalid date range for change detection: from_date "
+                    f"{date_range.from_date} is after to_date {date_range.to_date}."
+                )
+            after_window = (
+                f"{date_range.from_date}/{date_range.to_date}"
+                if date_range.from_date and date_range.to_date
+                else None
+            )
+            if date_range.from_date:
+                before_window = f"{date_range.from_date}/{date_range.to_date or 'now'}"
+
+        before_item = self._search_item(aoi, window=before_window, newest=False)
+        if before_item is None:
+            raise NoImageryFound(
+                f"No clear Sentinel-2 scene found for the 'before' date over this AOI. "
+                f"Try widening the date range."
+            )
+        # Exclude the before scene itself so before/after are distinct dates.
+        after_item = self._search_item(aoi, window=after_window, exclude_id=before_item.get("id"))
+        if after_item is None:
+            raise NoImageryFound(
+                f"No clear Sentinel-2 scene found for the 'after' date over this AOI. "
+                f"Try widening the date range."
+            )
+
+        before = self._read_item(aoi, before_item)
+        after = self._read_item(aoi, after_item, target_shape=before.red.shape)
+        return TemporalPair(before=before, after=after)
+
+    def _read_item(
+        self, aoi: Tuple[float, float, float, float], item: dict, target_shape: Optional[Tuple[int, int]] = None
+    ) -> BandData:
+        """Read one STAC item over the AOI (shared by fetch/fetch_pair)."""
+        assets = item.get("assets", {})
+        try:
+            blue = self._read_asset(assets["blue"]["href"], aoi)
+            green = self._read_asset(assets["green"]["href"], aoi)
+            red = self._read_asset(assets["red"]["href"], aoi)
+            nir = self._read_asset(assets["nir"]["href"], aoi)
+            scl = self._read_asset(assets["scl"]["href"], aoi, out_shape=green.shape, nearest=True)
+        except (KeyError, rasterio.errors.RasterioError) as exc:
+            raise ImageryUnavailable(f"Could not read scene bands: {exc}") from exc
+
+        if target_shape is not None and green.shape != target_shape:
+            green = self._resample(green, target_shape)
+            red = self._resample(red, target_shape)
+            nir = self._resample(nir, target_shape)
+            scl = self._resample(scl, target_shape, nearest=True)
+
+        if scl.shape != green.shape:
+            scl = np.resize(scl, green.shape)
+        valid = (red > 0) & (nir > 0) & (~np.isin(scl, list(_SCL_MASKED)))
+        if int(valid.sum()) == 0:
+            raise EmptyScene(
+                "Scene has no usable (cloud-free, positive-reflectance) pixels for this AOI."
+            )
+
+        blue_f = blue.astype(np.float32) * SCALE_FACTOR
+        green_f = green.astype(np.float32) * SCALE_FACTOR
+        red_f = red.astype(np.float32) * SCALE_FACTOR
+        nir_f = nir.astype(np.float32) * SCALE_FACTOR
+        blue_f[~valid] = np.nan
+        green_f[~valid] = np.nan
+        red_f[~valid] = np.nan
+        nir_f[~valid] = np.nan
+
+        meta = ImageryMetadata(
+            provider="Earth Search STAC (sentinel-2-l2a), live COG fetch",
+            satellite="Sentinel-2",
+            sensor="MSI",
+            acquisition_date=item.get("properties", {}).get("datetime"),
+            resolution_m=10.0,
+            crs=f"EPSG:{item.get('properties', {}).get('proj:epsg', '')}",
+            bands=["B02 (BLUE 10m)", "B03 (GREEN 10m)", "B04 (RED 10m)", "B08 (NIR 10m)", "SCL (cloud mask)"],
+            scene_id=item.get("id"),
+            cloud_cover_percent=item.get("properties", {}).get("eo:cloud_cover"),
+            processing_method=(
+                "Sentinel-2 L2A surface reflectance; windowed COG read; SCL cloud masking."
+            ),
+        )
+        return BandData(
+            green=green_f,
+            red=red_f,
+            blue=blue_f,
+            nir=nir_f,
+            valid=valid,
+            bounds_lnglat=aoi,
+            resolution_m=10.0,
+            metadata=meta,
+            centre_lnglat=((aoi[0] + aoi[2]) / 2.0, (aoi[1] + aoi[3]) / 2.0),
+            crs=meta.crs,
+        )
+
+    @staticmethod
+    def _resample(arr: np.ndarray, shape: Tuple[int, int], nearest: bool = False) -> np.ndarray:
+        """Explicit resample to a target grid (bilinear; nearest for classes)."""
+        import scipy.ndimage as ndimage
+
+        src = arr.astype(np.float32)
+        scale_y = shape[0] / src.shape[0]
+        scale_x = shape[1] / src.shape[1]
+        order = 0 if nearest else 1
+        out = ndimage.zoom(src, (scale_y, scale_x), order=order)
+        return out.astype(arr.dtype)
+
     # ── internals ────────────────────────────────────────────────────────
 
-    def _search_item(self, aoi: Tuple[float, float, float, float]):
+    def _search_item(
+        self,
+        aoi: Tuple[float, float, float, float],
+        window: Optional[str] = None,
+        newest: bool = True,
+        exclude_id: Optional[str] = None,
+    ):
         end = datetime.now(timezone.utc)
         start = end - timedelta(days=self.lookback_days)
+        if window:
+            dt_range = window
+        else:
+            dt_range = f"{start.isoformat()}/{end.isoformat()}"
         query = {
             "collections": [_COLLECTION],
             "bbox": list(aoi),
-            "datetime": f"{start.isoformat()}/{end.isoformat()}",
-            "limit": 8,
-            "sortby": [{"field": "properties.datetime", "direction": "desc"}],
+            "datetime": dt_range,
+            "limit": 16,
+            "sortby": [
+                {"field": "properties.datetime", "direction": "desc" if newest else "asc"}
+            ],
         }
         try:
             if self._client is not None:
@@ -421,9 +696,10 @@ class Sentinel2EarthSearchProvider:
         usable = [
             f for f in features
             if (f.get("properties", {}).get("eo:cloud_cover") or 0) < self.max_cloud
+            and (exclude_id is None or f.get("id") != exclude_id)
         ]
         if not usable:
-            usable = features
+            usable = [f for f in features if exclude_id is None or f.get("id") != exclude_id]
         return usable[0] if usable else None
 
     @staticmethod

@@ -16,6 +16,7 @@ import type {
   AnalysisToolId,
   ChangeResult,
   DetectionResult,
+  ImageryMetadata,
   IntentType,
   LandCoverResult,
   MeasurementKind,
@@ -23,6 +24,7 @@ import type {
   QueryIntent,
   QueryResponse,
   VegetationResult,
+  WaterResult,
 } from "@/types/query";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
@@ -93,6 +95,37 @@ interface BackendZone {
   confidence?: number | null;
 }
 
+interface BackendNdviStats {
+  min?: number | null;
+  max?: number | null;
+  mean?: number | null;
+  median?: number | null;
+  std?: number | null;
+  valid_pixel_percentage?: number | null;
+  water_pixel_percentage?: number | null;
+}
+
+interface BackendImageryMetadata {
+  provider?: string | null;
+  satellite?: string | null;
+  sensor?: string | null;
+  acquisition_date?: string | null;
+  resolution_m?: number | null;
+  crs?: string | null;
+  bands?: string[] | null;
+  scene_id?: string | null;
+  cloud_cover_percent?: number | null;
+  processing_method?: string | null;
+}
+
+interface BackendRasterOverlay {
+  image_data_url?: string | null;
+  bounds?: number[] | null;
+  label?: string | null;
+  opacity?: number | null;
+  colormap?: string | null;
+}
+
 interface BackendPayload {
   kind?: string | null;
   tool_id?: string | null;
@@ -101,8 +134,15 @@ interface BackendPayload {
   confidence?: number | null;
   model?: string | null;
   model_version?: string | null;
+  model_kind?: string | null;
   mode?: string | null;
   summary_text?: string | null;
+  model_inputs?: string[] | null;
+  ndvi_stats?: BackendNdviStats | null;
+  ndwi_stats?: BackendNdviStats | null;
+  thresholds?: Record<string, number> | null;
+  imagery?: BackendImageryMetadata | null;
+  overlay?: BackendRasterOverlay | null;
   total_features?: number | null;
   features?: BackendFeature[] | null;
   categories?: Record<string, number> | null;
@@ -112,8 +152,28 @@ interface BackendPayload {
   after_date?: string | null;
   total_area_changed_km2?: number | null;
   changes?: BackendChange[] | null;
+  change_method?: string | null;
+  before_imagery?: BackendImageryMetadata | null;
+  after_imagery?: BackendImageryMetadata | null;
+  change_stats?: {
+    valid_pixel_count?: number | null;
+    unchanged_pixel_count?: number | null;
+    changed_pixel_count?: number | null;
+    loss_pixel_count?: number | null;
+    gain_pixel_count?: number | null;
+    unchanged_percentage?: number | null;
+    changed_percentage?: number | null;
+    loss_percentage?: number | null;
+    gain_percentage?: number | null;
+    total_area_km2?: number | null;
+    changed_area_km2?: number | null;
+    loss_area_km2?: number | null;
+    gain_area_km2?: number | null;
+  } | null;
   vegetation_lost_km2?: number | null;
   zones?: BackendZone[] | null;
+  water_area_km2?: number | null;
+  threshold?: number | null;
   measurement_type?: string | null;
   value?: number | null;
   unit?: string | null;
@@ -175,6 +235,23 @@ function measurementKind(value: string | null | undefined): MeasurementKind {
   return value === "distance" || value === "perimeter" || value === "area" ? value : "area";
 }
 
+/** Map backend imagery provenance onto the UI's ImageryMetadata shape. */
+function mapImagery(imagery: BackendImageryMetadata | null | undefined): ImageryMetadata | undefined {
+  if (!imagery) return undefined;
+  return {
+    provider: str(imagery.provider ?? null, "Unknown provider"),
+    satellite: str(imagery.satellite ?? null, "Sentinel-2"),
+    sensor: str(imagery.sensor ?? null, "MSI"),
+    acquisitionDate: imagery.acquisition_date ?? undefined,
+    resolutionM: imagery.resolution_m ?? undefined,
+    crs: imagery.crs ?? undefined,
+    bands: imagery.bands ?? [],
+    sceneId: imagery.scene_id ?? undefined,
+    cloudCoverPercent: imagery.cloud_cover_percent ?? undefined,
+    processingMethod: str(imagery.processing_method ?? null, ""),
+  };
+}
+
 // ── Result mappers (per backend kind) ─────────────────────────────────────
 
 function toolIdFor(payload: BackendPayload, kind: string): AnalysisToolId {
@@ -206,6 +283,12 @@ function mapResult(
 
   switch (kind) {
     case "change": {
+      const overlay = payload.overlay;
+      const overlayBounds = overlay?.bounds;
+      const overlayCoords: [number, number, number, number] | undefined =
+        overlayBounds && overlayBounds.length >= 4
+          ? [overlayBounds[0], overlayBounds[1], overlayBounds[2], overlayBounds[3]]
+          : undefined;
       const result: ChangeResult = {
         kind: "change",
         toolId: toolIdFor(payload, kind),
@@ -213,6 +296,10 @@ function mapResult(
         confidence: num(payload.confidence, confidence),
         location,
         centre,
+        mode: payload.mode === "live" ? "live" : "mock",
+        model: payload.model ?? undefined,
+        modelVersion: payload.model_version ?? undefined,
+        modelKind: payload.model_kind === "ml" ? "ml" : payload.model_kind === "algorithm" ? "algorithm" : undefined,
         changes: (payload.changes ?? []).map((c, i) => ({
           id: str(c.id ?? null, `chg-${i + 1}`),
           type: str(c.type ?? null, "modification"),
@@ -224,10 +311,47 @@ function mapResult(
         beforeDate: str(payload.before_date ?? null, "—"),
         afterDate: str(payload.after_date ?? null, "—"),
         summaryText: str(payload.summary_text ?? null, "Change detection complete."),
+        changeMethod: payload.change_method ?? undefined,
+        beforeImagery: mapImagery(payload.before_imagery),
+        afterImagery: mapImagery(payload.after_imagery),
+        changeStats: payload.change_stats
+          ? {
+              validPixelCount: num(payload.change_stats.valid_pixel_count, 0),
+              unchangedPixelCount: num(payload.change_stats.unchanged_pixel_count, 0),
+              changedPixelCount: num(payload.change_stats.changed_pixel_count, 0),
+              lossPixelCount: num(payload.change_stats.loss_pixel_count, 0),
+              gainPixelCount: num(payload.change_stats.gain_pixel_count, 0),
+              unchangedPercentage: num(payload.change_stats.unchanged_percentage, 0),
+              changedPercentage: num(payload.change_stats.changed_percentage, 0),
+              lossPercentage: num(payload.change_stats.loss_percentage, 0),
+              gainPercentage: num(payload.change_stats.gain_percentage, 0),
+              totalAreaKm2: num(payload.change_stats.total_area_km2, 0),
+              changedAreaKm2: num(payload.change_stats.changed_area_km2, 0),
+              lossAreaKm2: num(payload.change_stats.loss_area_km2, 0),
+              gainAreaKm2: num(payload.change_stats.gain_area_km2, 0),
+            }
+          : undefined,
+        threshold: payload.threshold ?? undefined,
+        overlay:
+          overlay && overlay.image_data_url && overlayCoords
+            ? {
+                imageDataUrl: overlay.image_data_url,
+                bounds: overlayCoords,
+                label: str(overlay.label ?? null, "Delta NDVI change"),
+                opacity: num(overlay.opacity, 0.8),
+                colormap: overlay.colormap === "classes" ? "classes" : "ndvi",
+              }
+            : undefined,
       };
       return result;
     }
     case "land_cover": {
+      const overlay = payload.overlay;
+      const overlayBounds = overlay?.bounds;
+      const overlayCoords: [number, number, number, number] | undefined =
+        overlayBounds && overlayBounds.length >= 4
+          ? [overlayBounds[0], overlayBounds[1], overlayBounds[2], overlayBounds[3]]
+          : undefined;
       const result: LandCoverResult = {
         kind: "land_cover",
         toolId: toolIdFor(payload, kind),
@@ -235,18 +359,54 @@ function mapResult(
         confidence: num(payload.confidence, confidence),
         location,
         centre,
+        mode: payload.mode === "live" ? "live" : "mock",
+        model: payload.model ?? undefined,
+        modelVersion: payload.model_version ?? undefined,
+        modelKind: payload.model_kind === "ml" ? "ml" : payload.model_kind === "algorithm" ? "algorithm" : undefined,
         classes: (payload.classes ?? []).map((c) => ({
           name: str(c.name ?? null, "Unknown class"),
+          code: c.code ?? undefined,
           percentage: num(c.percentage, 0),
           areaKm2: num(c.area_km2, 0),
           color: str(c.color ?? null, "#6b7280"),
         })),
         totalAreaKm2: num(payload.total_area_km2, 0),
         summaryText: str(payload.summary_text ?? null, "Land cover classification complete."),
+        modelInputs: payload.model_inputs ?? undefined,
+        imagery: payload.imagery
+          ? {
+              provider: str(payload.imagery.provider ?? null, "Unknown provider"),
+              satellite: str(payload.imagery.satellite ?? null, "Sentinel-2"),
+              sensor: str(payload.imagery.sensor ?? null, "MSI"),
+              acquisitionDate: payload.imagery.acquisition_date ?? undefined,
+              resolutionM: payload.imagery.resolution_m ?? undefined,
+              crs: payload.imagery.crs ?? undefined,
+              bands: payload.imagery.bands ?? [],
+              sceneId: payload.imagery.scene_id ?? undefined,
+              cloudCoverPercent: payload.imagery.cloud_cover_percent ?? undefined,
+              processingMethod: str(payload.imagery.processing_method ?? null, ""),
+            }
+          : undefined,
+        overlay:
+          overlay && overlay.image_data_url && overlayCoords
+            ? {
+                imageDataUrl: overlay.image_data_url,
+                bounds: overlayCoords,
+                label: str(overlay.label ?? null, "Land cover classification"),
+                opacity: num(overlay.opacity, 1.0),
+                colormap: overlay.colormap === "classes" ? "classes" : "ndvi",
+              }
+            : undefined,
       };
       return result;
     }
     case "vegetation": {
+      const overlay = payload.overlay;
+      const overlayBounds = overlay?.bounds;
+      const overlayCoords: [number, number, number, number] | undefined =
+        overlayBounds && overlayBounds.length >= 4
+          ? [overlayBounds[0], overlayBounds[1], overlayBounds[2], overlayBounds[3]]
+          : undefined;
       const result: VegetationResult = {
         kind: "vegetation",
         toolId: toolIdFor(payload, kind),
@@ -254,6 +414,9 @@ function mapResult(
         confidence: num(payload.confidence, confidence),
         location,
         centre,
+        mode: payload.mode === "live" ? "live" : "mock",
+        model: payload.model ?? undefined,
+        modelVersion: payload.model_version ?? undefined,
         totalAreaKm2: num(payload.total_area_km2, 0),
         vegetationLostKm2: num(payload.vegetation_lost_km2, 0),
         zones: (payload.zones ?? []).map((z, i) => ({
@@ -266,6 +429,100 @@ function mapResult(
           confidence: num(z.confidence, 0.8),
         })),
         summaryText: str(payload.summary_text ?? null, "Vegetation analysis complete."),
+        ndviStats: payload.ndvi_stats
+          ? {
+              min: num(payload.ndvi_stats.min, 0),
+              max: num(payload.ndvi_stats.max, 0),
+              mean: num(payload.ndvi_stats.mean, 0),
+              median: num(payload.ndvi_stats.median, 0),
+              std: payload.ndvi_stats.std ?? undefined,
+              validPixelPercentage: num(payload.ndvi_stats.valid_pixel_percentage, 0),
+            }
+          : undefined,
+        thresholds: payload.thresholds ?? undefined,
+        imagery: payload.imagery
+          ? {
+              provider: str(payload.imagery.provider ?? null, "Unknown provider"),
+              satellite: str(payload.imagery.satellite ?? null, "Sentinel-2"),
+              sensor: str(payload.imagery.sensor ?? null, "MSI"),
+              acquisitionDate: payload.imagery.acquisition_date ?? undefined,
+              resolutionM: payload.imagery.resolution_m ?? undefined,
+              crs: payload.imagery.crs ?? undefined,
+              bands: payload.imagery.bands ?? [],
+              sceneId: payload.imagery.scene_id ?? undefined,
+              cloudCoverPercent: payload.imagery.cloud_cover_percent ?? undefined,
+              processingMethod: str(payload.imagery.processing_method ?? null, ""),
+            }
+          : undefined,
+        overlay:
+          overlay && overlay.image_data_url && overlayCoords
+            ? {
+                imageDataUrl: overlay.image_data_url,
+                bounds: overlayCoords,
+                label: str(overlay.label ?? null, "NDVI overlay"),
+                opacity: num(overlay.opacity, 0.75),
+                colormap: overlay.colormap === "classes" ? "classes" : "ndvi",
+              }
+            : undefined,
+      };
+      return result;
+    }
+    case "water": {
+      const overlay = payload.overlay;
+      const overlayBounds = overlay?.bounds;
+      const overlayCoords: [number, number, number, number] | undefined =
+        overlayBounds && overlayBounds.length >= 4
+          ? [overlayBounds[0], overlayBounds[1], overlayBounds[2], overlayBounds[3]]
+          : undefined;
+      const result: WaterResult = {
+        kind: "water",
+        toolId: toolIdFor(payload, kind),
+        queryId,
+        confidence: num(payload.confidence, confidence),
+        location,
+        centre,
+        mode: payload.mode === "live" ? "live" : "mock",
+        model: payload.model ?? undefined,
+        modelVersion: payload.model_version ?? undefined,
+        waterAreaKm2: num(payload.water_area_km2, 0),
+        totalAreaKm2: num(payload.total_area_km2, 0),
+        summaryText: str(payload.summary_text ?? null, "Water detection complete."),
+        threshold: num(payload.threshold, 0),
+        ndwiStats: payload.ndwi_stats
+          ? {
+              min: num(payload.ndwi_stats.min, 0),
+              max: num(payload.ndwi_stats.max, 0),
+              mean: num(payload.ndwi_stats.mean, 0),
+              median: num(payload.ndwi_stats.median, 0),
+              std: payload.ndwi_stats.std ?? undefined,
+              validPixelPercentage: num(payload.ndwi_stats.valid_pixel_percentage, 0),
+              waterPixelPercentage: num(payload.ndwi_stats.water_pixel_percentage, 0),
+            }
+          : undefined,
+        imagery: payload.imagery
+          ? {
+              provider: str(payload.imagery.provider ?? null, "Unknown provider"),
+              satellite: str(payload.imagery.satellite ?? null, "Sentinel-2"),
+              sensor: str(payload.imagery.sensor ?? null, "MSI"),
+              acquisitionDate: payload.imagery.acquisition_date ?? undefined,
+              resolutionM: payload.imagery.resolution_m ?? undefined,
+              crs: payload.imagery.crs ?? undefined,
+              bands: payload.imagery.bands ?? [],
+              sceneId: payload.imagery.scene_id ?? undefined,
+              cloudCoverPercent: payload.imagery.cloud_cover_percent ?? undefined,
+              processingMethod: str(payload.imagery.processing_method ?? null, ""),
+            }
+          : undefined,
+        overlay:
+          overlay && overlay.image_data_url && overlayCoords
+            ? {
+                imageDataUrl: overlay.image_data_url,
+                bounds: overlayCoords,
+                label: str(overlay.label ?? null, "NDWI water mask"),
+                opacity: num(overlay.opacity, 0.75),
+                colormap: overlay.colormap === "ndwi" ? "ndwi" : overlay.colormap === "classes" ? "classes" : "ndvi",
+              }
+            : undefined,
       };
       return result;
     }

@@ -119,6 +119,7 @@ class VegetationAnalysisService(AbstractAnalysisService):
             model=_ALGORITHM_ID,
             model_version=_ALGORITHM_VERSION,
             mode="live",
+            model_kind="algorithm",
             summary_text=summary,
             total_area_km2=total_area_km2,
             vegetation_lost_km2=None,  # requires a time series, not available here
