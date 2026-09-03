@@ -196,14 +196,14 @@ The ChatGPT-style answers everywhere are powered by the Gemini API. Get a free k
 ```bash
 # backend (preferred — key stays server-side)
 GOOGLE_API_KEY="your_key_here"
-GEMINI_MODEL="gemini-2.5-flash"
+GEMINI_MODEL="gemini-3.8-flash"
 ```
 
 or, for a browser-only demo with no backend running:
 
 ```bash
 VITE_GEMINI_API_KEY="your_key_here"
-VITE_GEMINI_MODEL="gemini-2.5-flash"
+VITE_GEMINI_MODEL="gemini-3.8-flash"
 ```
 
 The assistant checks the backend first, then the browser key. Without either it runs fully offline (page assistants answer from local data briefings; the query page uses the demo engine). Check **Settings → AI assistant** for live status.

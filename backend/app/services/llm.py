@@ -10,7 +10,7 @@ back to the deterministic engine instead of surfacing a crash.
 Configure with:
 
     GOOGLE_API_KEY=<AI Studio key>   # https://aistudio.google.com/apikey
-    GEMINI_MODEL=gemini-2.5-flash    # model id, override as needed
+    GEMINI_MODEL=gemini-3.8-flash    # model id, override as needed
 
 The key stays server-side: the browser only ever talks to this backend,
 never to Google directly.

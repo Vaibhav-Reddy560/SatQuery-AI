@@ -179,7 +179,7 @@ export default function Settings() {
               {ai.configured ? "Configured" : "Not set"}
             </span>
           </Row>
-          <Row title="Model" description="Override the Gemini model id with GEMINI_MODEL (backend) or VITE_GEMINI_MODEL (browser). Defaults to gemini-2.5-flash.">
+          <Row title="Model" description="Override the Gemini model id with GEMINI_MODEL (backend) or VITE_GEMINI_MODEL (browser). Defaults to gemini-3.8-flash.">
             <span className="font-mono text-mono-sm text-text-muted">{ai.model}</span>
           </Row>
         </div>

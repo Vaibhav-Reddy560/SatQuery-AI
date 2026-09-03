@@ -18,7 +18,7 @@ const GEMINI_REST_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
 
 function clientModel(): string {
-  return import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash";
+  return import.meta.env.VITE_GEMINI_MODEL || "gemini-3.8-flash";
 }
 
 function clientKey(): string | undefined {

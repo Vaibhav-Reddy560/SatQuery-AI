@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # every AI surface degrades gracefully to the deterministic engine and
     # the app stays fully usable offline. Key stays server-side.
     GOOGLE_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.8-flash"
     GEMINI_MAX_OUTPUT_TOKENS: int = 1024
     GEMINI_TEMPERATURE: float = 0.6
 
