@@ -106,3 +106,60 @@ def test_chat_returns_503_when_gemini_has_no_candidates(monkeypatch):
 
     response = client.post("/api/v1/ai/chat", json=_chat_payload())
     assert response.status_code == 503
+
+
+def test_chat_retries_transient_503_and_falls_back_to_next_model(monkeypatch):
+    """A 503 high-demand response should retry and then try the fallback model."""
+    calls = []
+
+    def flaky_post(url, **kwargs):
+        calls.append(url)
+        if len(calls) == 1:  # primary model, attempt 1 -> transient overload
+            return _FakeGeminiResponse(status_code=503)
+        if len(calls) == 2:  # primary model, attempt 2 -> still overloaded
+            return _FakeGeminiResponse(status_code=503)
+        # fallback model succeeds
+        return _FakeGeminiResponse(
+            candidates=[{"content": {"parts": [{"text": "Recovered via fallback model."}]}}]
+        )
+
+    monkeypatch.setattr(llm, "_api_key", lambda: "test-key")
+    monkeypatch.setattr(llm, "_post", flaky_post)
+    monkeypatch.setattr(llm, "time", type("T", (), {"sleep": lambda *a: None})())
+
+    response = client.post("/api/v1/ai/chat", json=_chat_payload())
+    assert response.status_code == 200
+    assert response.json()["reply"] == "Recovered via fallback model."
+    # Primary tried twice (URLs identical), then a different fallback model URL.
+    assert len(set(calls)) == 2
+
+
+def test_chat_does_not_retry_non_retryable_errors(monkeypatch):
+    """404 (unknown model) or auth errors should fail fast, not burn retries."""
+    calls = []
+
+    def rejecting_post(url, **kwargs):
+        calls.append(url)
+        return _FakeGeminiResponse(status_code=404)
+
+    monkeypatch.setattr(llm, "_api_key", lambda: "test-key")
+    monkeypatch.setattr(llm, "_post", rejecting_post)
+
+    response = client.post("/api/v1/ai/chat", json=_chat_payload())
+    assert response.status_code == 503
+    assert len(calls) == 1  # no fallback/retry for a hard 404
+
+
+def test_generate_text_returns_none_when_all_models_exhausted(monkeypatch):
+    calls = []
+
+    def always_down(url, **kwargs):
+        calls.append(url)
+        return _FakeGeminiResponse(status_code=503)
+
+    monkeypatch.setattr(llm, "_api_key", lambda: "test-key")
+    monkeypatch.setattr(llm, "_post", always_down)
+    monkeypatch.setattr(llm, "time", type("T", (), {"sleep": lambda *a: None})())
+
+    assert llm.generate_text(messages=[{"role": "user", "content": "hi"}]) is None
+    assert len(calls) >= 3  # primary x2 + at least one fallback

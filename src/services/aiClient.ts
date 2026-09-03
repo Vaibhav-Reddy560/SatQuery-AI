@@ -110,6 +110,8 @@ async function viaBackend(opts: AiChatOptions): Promise<AiChatResult | null> {
   }
 }
 
+const RETRYABLE_STATUS = new Set([429, 500, 503]);
+
 async function viaBrowserGemini(opts: AiChatOptions): Promise<AiChatResult | null> {
   const key = clientKey();
   if (!key) return null;
@@ -132,31 +134,43 @@ async function viaBrowserGemini(opts: AiChatOptions): Promise<AiChatResult | nul
     payload.systemInstruction = { parts: [{ text: systemPrompt }] };
   }
 
-  try {
-    const res = await fetchWithTimeout(
-      `${GEMINI_REST_URL.replace("{model}", model)}?key=${encodeURIComponent(key)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
-      60_000
-    );
-    if (!res.ok) {
-      console.warn(`Gemini browser call failed (HTTP ${res.status}) — ${await res.text().catch(() => "")}`);
+  // The free tier occasionally answers with transient 503 "high demand" —
+  // retry once with a short pause before giving up.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(
+        `${GEMINI_REST_URL.replace("{model}", model)}?key=${encodeURIComponent(key)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+        60_000
+      );
+    } catch (error) {
+      console.warn("Gemini browser call failed — falling back.", error);
       return null;
     }
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const parts = data.candidates?.[0]?.content?.parts ?? [];
-    const reply = parts.map((p) => p.text ?? "").join("").trim();
-    if (!reply) return null;
-    return { reply, model, source: "browser" };
-  } catch (error) {
-    console.warn("Gemini browser call failed — falling back.", error);
-    return null;
+
+    if (res.ok) {
+      const raw: unknown = await res.json();
+      const parsed = raw as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      const first = parsed.candidates?.[0];
+      const parts = first?.content?.parts ?? [];
+      const reply = parts.map((p) => p.text ?? "").join("").trim();
+      if (!reply) return null;
+      return { reply, model, source: "browser" };
+    }
+
+    const body = await res.text().catch(() => "");
+    console.warn(`Gemini browser call failed (HTTP ${res.status}) — ${body}`);
+    if (!RETRYABLE_STATUS.has(res.status) || attempt === 1) return null;
+    await new Promise((r) => setTimeout(r, 1200));
   }
+  return null;
 }
 
 /**
