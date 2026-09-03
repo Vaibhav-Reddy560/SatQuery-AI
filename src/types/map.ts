@@ -10,6 +10,10 @@ export interface TileSource {
   attribution: string;
   /** Max zoom level */
   maxZoom?: number;
+  /** Logical tile size. 256 for true 1x tiles; 512-into-256 for `@2x` retina
+      variants. Declared per source — assuming one value for all of them is
+      what made non-retina sources render soft. */
+  tileSize?: number;
 }
 
 // ── Map Cursor Coordinates ────────────────────────────────

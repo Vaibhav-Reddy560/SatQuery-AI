@@ -1,0 +1,12 @@
+{
+  "before": {
+    "release": 60013,
+    "date": "2024-03-07"
+  },
+  "after": {
+    "release": 26334,
+    "date": "2026-08-05"
+  },
+  "aoi": "Navi Mumbai, Maharashtra",
+  "source": "Esri World Imagery Wayback"
+}

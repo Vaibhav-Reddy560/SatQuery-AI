@@ -1,194 +1,211 @@
 import { useState } from "react";
-import {
-  Ruler,
-  ArrowRight,
-  SquareIcon,
-  Circle,
-  Trash2,
-  Download,
-  MapPin,
-  Clock,
-} from "lucide-react";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Ruler, Square, Spline, Download, Trash2, MapPin, Clock } from "lucide-react";
+import { Page } from "@/components/layout/Page";
+import { Button } from "@/components/ui/Button";
+import { Num } from "@/components/ui/Num";
+import { ImageViewport } from "@/components/ui/ImageViewport";
 import { measurements } from "@/data/mockData";
+import { formatTimestamp } from "@/lib/format";
+import { cn, SCREEN_BEZEL, IMAGE_BEZEL } from "@/lib/utils";
 import type { MeasurementType } from "@/types";
-import { cn } from "@/lib/utils";
 
-const toolOptions: { type: MeasurementType; icon: React.ComponentType<{ className?: string }>; label: string; description: string }[] = [
-  { type: "distance", icon: ArrowRight, label: "Distance", description: "Measure linear distance between two points" },
-  { type: "area", icon: SquareIcon, label: "Area", description: "Calculate enclosed area of a polygon" },
-  { type: "perimeter", icon: Circle, label: "Perimeter", description: "Measure perimeter of a shape" },
+const TOOLS: { value: MeasurementType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "distance", label: "Distance", icon: Ruler },
+  { value: "area", label: "Area", icon: Square },
+  { value: "perimeter", label: "Perimeter", icon: Spline },
 ];
 
-function formatMeasurement(value: number, unit: string) {
-  return `${value.toLocaleString()} ${unit}`;
+const HINT: Record<MeasurementType, string> = {
+  distance: "Click two or more points to measure a path along the surface.",
+  area: "Draw a closed polygon to measure enclosed ground area.",
+  perimeter: "Draw a shape to measure the length of its boundary.",
+};
+
+/** Overlay geometry per tool, in the viewport's 0-100 space. */
+function Geometry({ tool }: { tool: MeasurementType }) {
+  if (tool === "distance") {
+    return (
+      <polyline
+        points="18,72 38,54 58,58 80,30"
+        fill="none"
+        stroke="#6fb8ff"
+        strokeWidth={0.5}
+        strokeDasharray="2 1.5"
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+  if (tool === "area") {
+    return (
+      <polygon
+        points="22,30 72,26 78,66 30,74"
+        fill="#3d7fff"
+        fillOpacity={0.18}
+        stroke="#3d7fff"
+        strokeWidth={0.5}
+        vectorEffect="non-scaling-stroke"
+      />
+    );
+  }
+  return (
+    <polygon
+      points="26,34 70,28 74,64 32,70"
+      fill="none"
+      stroke="#91caff"
+      strokeWidth={0.6}
+      strokeDasharray="3 2"
+      vectorEffect="non-scaling-stroke"
+    />
+  );
+}
+
+/**
+ * Point markers for the "distance" tool — HTML `<span>`s, not SVG
+ * `<circle>`s. `ImageViewport`'s overlay SVG uses `preserveAspectRatio="none"`
+ * so its 0-100 coordinate space stretches non-uniformly to fill whatever
+ * aspect ratio the viewport actually renders at (needed so `Box`/polygon
+ * percentages land in the right place regardless of aspect) — which turns a
+ * `<circle>`'s equal radius into an ellipse the moment the container isn't
+ * square. Same fix `ImageViewport` already applies to its own box labels,
+ * for the identical reason.
+ */
+function DistancePoints() {
+  const points: [number, number][] = [[18, 72], [38, 54], [58, 58], [80, 30]];
+  return (
+    <>
+      {points.map(([x, y]) => (
+        <span
+          key={`${x}-${y}`}
+          className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-atmos ring-2 ring-bg-primary/70"
+          style={{ left: `${x}%`, top: `${y}%` }}
+        />
+      ))}
+    </>
+  );
 }
 
 export default function Measurements() {
-  const [activeTool, setActiveTool] = useState<MeasurementType>("distance");
+  const [tool, setTool] = useState<MeasurementType>("distance");
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <Page
+      title="Measurements"
+      subtitle="Distance, area and perimeter drawn straight onto the imagery."
+      actions={
+        <Button variant="primary" size="sm">
+          <Download className="h-3.5 w-3.5" /> Export
+        </Button>
+      }
+    >
+      <section className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8 items-start">
         <div>
-          <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
-            <Ruler className="h-5 w-5 text-accent" />
-            Measurements
-          </h2>
-          <p className="text-sm text-text-muted mt-1">
-            Measure distances, areas, and perimeters on satellite imagery
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary bg-bg-tertiary border border-border-default rounded-lg hover:bg-bg-hover transition-colors">
-            <Download className="h-4 w-4" />
-            Export All
-          </button>
-        </div>
-      </div>
+          {/* Chrome toolbar — same active/inactive language as the
+              Explore map's `DrawingToolbar` (this page's own tool
+              selector, restyled to match rather than the generic
+              pill-style `Segmented` it used before), so measuring reads
+              as one console-hardware action across both screens. */}
+          <div className="chrome rounded-lg p-1.5 flex flex-wrap items-center gap-1 shadow-overlay">
+            {TOOLS.map((t) => {
+              const Icon = t.icon;
+              const active = tool === t.value;
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => setTool(t.value)}
+                  aria-pressed={active}
+                  className={cn(
+                    "flex items-center gap-2 h-9 px-3.5 rounded-md text-body-sm font-medium transition-colors duration-150",
+                    active
+                      ? "bevel-in bg-accent-muted text-accent"
+                      : "text-text-secondary hover:text-phosphor hover:bg-chrome-mid/50"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {t.label}
+                </button>
+              );
+            })}
+            <div className="w-px h-6 bg-chrome-seam mx-1 hidden sm:block shrink-0" aria-hidden="true" />
+            {/* `flex-1 min-w-0` — this used to size to its own text and leave
+                the rest of the row empty next to it. As a flex item it now
+                claims whatever the buttons don't, so the row reads as one
+                filled toolbar instead of three keys with a gap after them.
+                Still wraps to its own full-width line under `sm`, where the
+                divider above it disappears. */}
+            <p className="flex-1 min-w-0 text-body-sm text-text-secondary px-2 py-1.5">{HINT[tool]}</p>
+          </div>
 
-      {/* Measurement Tools */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {toolOptions.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <button
-              key={tool.type}
-              onClick={() => setActiveTool(tool.type)}
-              className={cn(
-                "p-4 rounded-lg border text-left transition-all",
-                activeTool === tool.type
-                  ? "border-accent bg-accent-muted/50 ring-1 ring-accent/20"
-                  : "border-border-subtle bg-bg-secondary hover:border-border-default hover:bg-bg-hover"
-              )}
+          {/* Chrome housing around the viewport — the same console-body /
+              inset-screen split as `EarthConsole` and the Explore map,
+              instead of the image sitting flush with no frame around it. */}
+          <div className="chrome rounded-lg p-3 mt-4">
+            <div
+              className="rounded-md overflow-hidden"
+              style={{ border: IMAGE_BEZEL }}
             >
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "p-2.5 rounded-lg",
-                    activeTool === tool.type ? "bg-accent text-white" : "bg-bg-tertiary text-text-secondary"
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-text-primary">{tool.label}</div>
-                  <div className="text-xs text-text-muted mt-0.5">{tool.description}</div>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Map / Drawing Area */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Measurement Canvas</span>
-              <Badge variant="info">{toolOptions.find((t) => t.type === activeTool)?.label} Tool Active</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative aspect-[4/3] bg-bg-primary rounded-lg border border-border-subtle overflow-hidden">
-              <div className="absolute inset-0 bg-[#0d0f14]">
-                {/* Grid */}
-                <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <pattern id="meas-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a2332" strokeWidth="0.5" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#meas-grid)" />
-                </svg>
-
-                {/* Sample measurement: distance line */}
-                {activeTool === "distance" && (
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300">
-                    <line x1="50" y1="250" x2="350" y2="50" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 3" />
-                    <circle cx="50" cy="250" r="5" fill="#3b82f6" />
-                    <circle cx="350" cy="50" r="5" fill="#3b82f6" />
-                    <rect x="160" y="135" width="80" height="24" rx="4" fill="#1e2028" stroke="#2a2d38" />
-                    <text x="200" y="151" textAnchor="middle" fill="#3b82f6" fontSize="11" fontFamily="monospace">12.4 km</text>
-                  </svg>
-                )}
-
-                {/* Sample measurement: area polygon */}
-                {activeTool === "area" && (
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300">
-                    <polygon points="100,80 300,60 320,220 80,240" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 3" />
-                    <circle cx="100" cy="80" r="4" fill="#3b82f6" />
-                    <circle cx="300" cy="60" r="4" fill="#3b82f6" />
-                    <circle cx="320" cy="220" r="4" fill="#3b82f6" />
-                    <circle cx="80" cy="240" r="4" fill="#3b82f6" />
-                    <rect x="155" y="140" width="90" height="24" rx="4" fill="#1e2028" stroke="#2a2d38" />
-                    <text x="200" y="156" textAnchor="middle" fill="#3b82f6" fontSize="11" fontFamily="monospace">8.7 km²</text>
-                  </svg>
-                )}
-
-                {/* Sample measurement: perimeter */}
-                {activeTool === "perimeter" && (
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300">
-                    <ellipse cx="200" cy="150" rx="120" ry="80" fill="rgba(34,197,94,0.08)" stroke="#22c55e" strokeWidth="2" strokeDasharray="6 3" />
-                    <rect x="155" y="138" width="90" height="24" rx="4" fill="#1e2028" stroke="#2a2d38" />
-                    <text x="200" y="154" textAnchor="middle" fill="#22c55e" fontSize="11" fontFamily="monospace">28.6 km</text>
-                  </svg>
-                )}
-
-                {/* Instruction */}
-                <div className="absolute bottom-3 left-3 text-xs text-text-muted bg-bg-primary/80 px-2 py-1 rounded backdrop-blur-sm">
-                  Click on the map to add measurement points
-                </div>
-              </div>
+              <ImageViewport
+                src="/imagery/kerala-coast.jpg"
+                alt="Kerala coastline — measurement canvas"
+                aspect="aspect-[4/3]"
+                overlay={<Geometry tool={tool} />}
+                className="rounded-none"
+              >
+                {tool === "distance" && <DistancePoints />}
+              </ImageViewport>
             </div>
-          </CardContent>
-        </Card>
+            <p className="mt-3 px-1 text-xs text-white">Alleppey, Kerala · Esri World Imagery</p>
+          </div>
+        </div>
 
-        {/* Measurement History */}
-        <Card className="flex flex-col">
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Measurement History</CardTitle>
-            <button className="text-xs text-text-muted hover:text-danger transition-colors">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto">
-            <div className="space-y-2">
+        {/* Saved measurements — CRT terminal readout inside its own chrome
+            housing, the same console-body / inset-screen split every other
+            CRT panel in the app uses. This one was a bare CRT screen with
+            no console around it — the steel bezel on its own read as a
+            screen sitting loose, not a screen built into a console. */}
+        <div className="chrome rounded-lg p-3">
+          <div
+            className="crt rounded-md p-5 bg-bg-primary font-mono text-mono text-phosphor phosphor-glow"
+            style={{ boxShadow: SCREEN_BEZEL }}
+          >
+            <div className="text-label uppercase text-phosphor-dim [text-shadow:none] mb-1">Saved</div>
+
+            <div className="divide-y divide-chrome-seam/60">
               {measurements.map((m) => (
-                <div
-                  key={m.id}
-                  className={cn(
-                    "p-3 rounded-lg border transition-colors",
-                    m.type === activeTool
-                      ? "border-accent/50 bg-accent-muted/30"
-                      : "border-border-subtle hover:bg-bg-hover"
-                  )}
-                >
-                  <div className="flex items-start justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={m.type === "distance" ? "info" : m.type === "area" ? "success" : "default"}>
-                        {m.type.charAt(0).toUpperCase() + m.type.slice(1)}
-                      </Badge>
+                <div key={m.id} className="group flex items-start gap-4 py-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[0.6875rem] uppercase tracking-[0.06em] text-phosphor-dim [text-shadow:none] mb-1.5">
+                      {m.type}
                     </div>
-                    <button className="text-text-muted hover:text-accent transition-colors" title="Show on map">
-                      <MapPin className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="text-[1.75rem] leading-none font-thin tracking-[-0.012em] text-phosphor">
+                      <Num value={m.value} decimals={1} />
+                      <span className="ml-1.5 text-[0.9375rem] font-normal text-phosphor-dim [text-shadow:none]">
+                        {m.unit}
+                      </span>
+                    </div>
+                    <p className="mt-2.5 text-body-sm text-phosphor-dim [text-shadow:none]">{m.label}</p>
+                    <p className="mt-1.5 flex items-center gap-3 text-[0.6875rem] text-phosphor-dim [text-shadow:none]">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="h-3 w-3" />
+                        {m.coordinates.length} points
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3" />
+                        {formatTimestamp(m.createdAt)}
+                      </span>
+                    </p>
                   </div>
-                  <div className="text-lg font-bold text-text-primary">{formatMeasurement(m.value, m.unit)}</div>
-                  <div className="text-xs text-text-secondary mt-0.5">{m.label}</div>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Clock className="h-3 w-3 text-text-muted" />
-                    <span className="text-[10px] text-text-muted">{new Date(m.createdAt).toLocaleDateString()}</span>
-                  </div>
+                  <button
+                    aria-label={`Delete ${m.label}`}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-2 rounded-md text-phosphor-dim [text-shadow:none] hover:text-danger hover:bg-bg-hover"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          </div>
+        </div>
+      </section>
+    </Page>
   );
 }

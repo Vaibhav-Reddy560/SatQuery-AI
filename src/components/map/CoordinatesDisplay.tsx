@@ -1,4 +1,5 @@
-import { cn } from "@/lib/utils";
+import { Readout } from "@/components/ui/Readout";
+import { cn, SCREEN_BEZEL } from "@/lib/utils";
 import type { CursorCoordinates } from "@/types/map";
 
 interface CoordinatesDisplayProps {
@@ -9,6 +10,12 @@ interface CoordinatesDisplayProps {
 
 /**
  * Bottom-left overlay showing cursor coordinates and current zoom level.
+ *
+ * A real CRT readout now — `crt` scanlines over a `bg-bg-primary` screen
+ * with the same steel `SCREEN_BEZEL` every other instrument panel in the
+ * app uses, not a grey hardware-key pill with phosphor text pasted on top
+ * of it. The telemetry typography (`Readout`) is unchanged; only the
+ * housing it sits in changed materials, from chrome button to CRT screen.
  */
 export function CoordinatesDisplay({
   cursorCoords,
@@ -20,21 +27,21 @@ export function CoordinatesDisplay({
     return `${Math.abs(val).toFixed(4)}°${dir}`;
   };
 
-  const lat = cursorCoords
-    ? formatCoord(cursorCoords.lat, "N", "S")
-    : "—";
-  const lng = cursorCoords
-    ? formatCoord(cursorCoords.lng, "E", "W")
-    : "—";
+  const lat = cursorCoords ? formatCoord(cursorCoords.lat, "N", "S") : "—";
+  const lng = cursorCoords ? formatCoord(cursorCoords.lng, "E", "W") : "—";
 
   return (
     <div
-      className={cn(
-        "text-[10px] text-text-muted font-mono bg-bg-primary/80 px-2 py-1 rounded backdrop-blur-sm border border-border-subtle select-none",
-        className
-      )}
+      className={cn("crt select-none rounded-md bg-bg-primary px-2.5 py-1.5", className)}
+      style={{ boxShadow: SCREEN_BEZEL }}
     >
-      {lat}, {lng} &middot; Zoom: {zoom.toFixed(1)}
+      <Readout
+        items={[
+          { label: "LAT", value: lat },
+          { label: "LON", value: lng },
+          { label: "Z", value: zoom.toFixed(1) },
+        ]}
+      />
     </div>
   );
 }

@@ -13,7 +13,6 @@ import type {
   Project,
   Report,
   QueryMessage,
-  MapLayer,
 } from "@/types";
 
 // ── Dashboard ─────────────────────────────────────────────
@@ -461,15 +460,6 @@ export const queryMessages: QueryMessage[] = [
     ],
     suggestedActions: ["Show changes on map", "Generate change report", "Zoom to losses"],
   },
-];
-
-// ── Map Layers ────────────────────────────────────────────
-
-export const defaultMapLayers: MapLayer[] = [
-  { id: "layer-sat", name: "Satellite Imagery", visible: true, type: "satellite" },
-  { id: "layer-terrain", name: "Terrain", visible: false, type: "terrain" },
-  { id: "layer-labels", name: "Place Labels", visible: true, type: "labels" },
-  { id: "layer-boundaries", name: "Administrative Boundaries", visible: false, type: "boundaries" },
 ];
 
 // ── Activity Timeline Data (for charts) ───────────────────

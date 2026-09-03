@@ -1,103 +1,114 @@
-import { useState } from "react";
 import { Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/store/useAppStore";
-import { TILE_SOURCES, getActiveTileSource } from "@/lib/tileSources";
-import type { TileSource } from "@/types/map";
+import { VIEW_MODES, isVectorMode, type ViewMode } from "@/lib/tileSources";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface LayerPanelProps {
-  /** Called when the user picks a different base tile source */
-  onBaseLayerChange?: (source: TileSource) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  showLabels: boolean;
+  onShowLabelsChange: (show: boolean) => void;
   className?: string;
 }
 
 /**
  * Floating layer selector.
- * - Base layers: swap the raster tile source
- * - Overlays: toggle via Zustand store
+ *
+ * `viewMode`/`showLabels` are owned by `Explore.tsx` and passed in rather
+ * than kept here — the exact same state also renders as the inspector's
+ * "Layers" chips (`InspectorPanels`), and two independent pieces of state
+ * for one selection was the bug that made the dropdown and the chips fall
+ * out of sync with each other.
+ *
+ * The old "Overlays" section (Terrain / Boundaries / Place Labels /
+ * Satellite Imagery, toggled through a Zustand slice) is gone — nothing
+ * ever read that state to change the map, so toggling those checkboxes was
+ * a checkbox that did nothing.
  */
-export function LayerPanel({ onBaseLayerChange, className }: LayerPanelProps) {
-  const [open, setOpen] = useState(false);
-  const [activeBaseId, setActiveBaseId] = useState(getActiveTileSource().id);
-  const mapLayers = useAppStore((s) => s.mapLayers);
-  const toggleMapLayer = useAppStore((s) => s.toggleMapLayer);
-
-  const handleBaseSelect = (src: TileSource) => {
-    setActiveBaseId(src.id);
-    onBaseLayerChange?.(src);
-    setOpen(false);
-  };
-
+export function LayerPanel({
+  open,
+  onOpenChange,
+  viewMode,
+  onViewModeChange,
+  showLabels,
+  onShowLabelsChange,
+  className,
+}: LayerPanelProps) {
   return (
     <div className={cn("relative", className)}>
-      <button
-        onClick={() => setOpen(!open)}
-        className={cn(
-          "p-2.5 rounded-lg border backdrop-blur-sm transition-colors",
-          open
-            ? "bg-bg-secondary border-accent text-accent"
-            : "bg-bg-secondary/90 border-border-default text-text-secondary hover:text-text-primary"
-        )}
-        title="Toggle layers"
-        aria-label="Toggle layers panel"
-        aria-expanded={open}
-      >
-        <Layers className="h-4 w-4" />
-      </button>
+      <Tooltip content="Toggle layers" side="left">
+        <button
+          onClick={() => onOpenChange(!open)}
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-150",
+            open
+              ? "bevel-in bg-accent-muted text-accent"
+              : "bevel bg-bg-hover text-text-primary hover:bg-bg-hover/70 shadow-overlay"
+          )}
+          aria-label="Toggle layers panel"
+          aria-expanded={open}
+        >
+          <Layers className="h-4 w-4" />
+        </button>
+      </Tooltip>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-56 bg-bg-secondary border border-border-default rounded-lg shadow-xl p-2 z-10">
-          <div className="text-[10px] font-semibold text-text-muted uppercase tracking-wider px-2 py-1 mb-1">
-            Base Layers
-          </div>
-          {Object.values(TILE_SOURCES).map((src) => (
-            <button
-              key={src.id}
-              onClick={() => handleBaseSelect(src)}
-              className="flex items-center gap-2.5 w-full px-2 py-1.5 text-sm text-left rounded-md hover:bg-bg-hover transition-colors"
-            >
-              <div
+        // Opens `left-0` (aligned to the trigger's left edge, extending
+        // right) — the trigger now sits in the left-hand control column, so
+        // this is the direction with map underneath it, not the inspector
+        // aside anchored to the right edge.
+        <div className="absolute top-full left-0 mt-2 w-56 rounded-lg chrome shadow-overlay p-2 z-10">
+          {/* `text-white/70`, not the standard `text-text-faint` eyebrow —
+              that token is near-black and reads fine on near-black
+              backgrounds, but this dropdown sits on the lighter blue-steel
+              `chrome` gradient, where it was reported as invisible (same
+              fix as the inspector's "Selection"/"Layers" headers). */}
+          <div className="text-label uppercase text-white/70 px-2 py-1 mb-1">View</div>
+          <div className="space-y-1">
+            {VIEW_MODES.map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => onViewModeChange(mode.id)}
                 className={cn(
-                  "w-3 h-3 rounded-full border-2",
-                  activeBaseId === src.id
-                    ? "border-accent bg-accent"
-                    : "border-border-default bg-bg-primary"
-                )}
-              />
-              <span
-                className={cn(
-                  activeBaseId === src.id ? "text-text-primary" : "text-text-secondary"
+                  "flex w-full items-center gap-2.5 px-2.5 py-1.5 rounded-md text-body-sm text-left transition-colors duration-150",
+                  viewMode === mode.id
+                    ? "bevel-in bg-accent-muted text-accent"
+                    : "bevel bg-bg-hover text-text-primary hover:bg-bg-hover/70"
                 )}
               >
-                {src.name}
-              </span>
-            </button>
-          ))}
-
-          <div className="h-px bg-border-subtle my-2" />
-
-          <div className="text-[10px] font-semibold text-text-muted uppercase tracking-wider px-2 py-1 mb-1">
-            Overlays
+                {mode.label}
+              </button>
+            ))}
           </div>
-          {mapLayers.map((layer) => (
+
+          <div className="h-px bg-chrome-seam my-2" />
+
+          <div className="text-label uppercase text-white/70 px-2 py-1 mb-1">Overlay</div>
+          {/* `aria-disabled`, not the native `disabled` attribute — a truly
+              disabled button stops firing pointer/focus events in most
+              browsers, which would silently kill the Tooltip explaining WHY
+              it's disabled right when it's most needed. */}
+          <Tooltip
+            content={isVectorMode(viewMode) ? "The map view already shows labels" : "Place names and boundaries"}
+            side="left"
+          >
             <button
-              key={layer.id}
-              onClick={() => toggleMapLayer(layer.id)}
-              className="flex items-center gap-2.5 w-full px-2 py-1.5 text-sm text-left rounded-md hover:bg-bg-hover transition-colors"
+              onClick={() => !isVectorMode(viewMode) && onShowLabelsChange(!showLabels)}
+              aria-disabled={isVectorMode(viewMode)}
+              aria-pressed={showLabels}
+              className={cn(
+                "flex w-full items-center gap-2.5 px-2.5 py-1.5 rounded-md text-body-sm text-left transition-colors duration-150",
+                isVectorMode(viewMode) && "opacity-40 cursor-not-allowed",
+                showLabels
+                  ? "bevel-in bg-accent-muted text-accent"
+                  : "bevel bg-bg-hover text-text-primary hover:bg-bg-hover/70"
+              )}
             >
-              <div
-                className={cn(
-                  "w-3 h-3 rounded-sm border",
-                  layer.visible
-                    ? "bg-accent border-accent"
-                    : "border-border-default bg-bg-primary"
-                )}
-              />
-              <span className={cn(layer.visible ? "text-text-primary" : "text-text-muted")}>
-                {layer.name}
-              </span>
+              Labels
             </button>
-          ))}
+          </Tooltip>
         </div>
       )}
     </div>

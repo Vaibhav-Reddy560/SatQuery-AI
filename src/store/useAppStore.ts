@@ -1,52 +1,42 @@
 import { create } from "zustand";
-import type { MapLayer } from "@/types";
-import { defaultMapLayers } from "@/data/mockData";
 
 interface AppState {
-  // Sidebar
-  sidebarCollapsed: boolean;
-  toggleSidebar: () => void;
+  // Nav rail. Pinned = permanently expanded; otherwise it expands on hover
+  // as an overlay, so the page never reflows.
+  railPinned: boolean;
+  toggleRail: () => void;
 
   // Map
-  mapLayers: MapLayer[];
-  toggleMapLayer: (layerId: string) => void;
+  activeBaseLayer: string;
+  setActiveBaseLayer: (id: string) => void;
   mapCenter: { lat: number; lng: number };
   mapZoom: number;
   setMapCenter: (center: { lat: number; lng: number }) => void;
   setMapZoom: (zoom: number) => void;
 
-  // Query
+  // Query — carries a prompt from the landing page into /query
   queryInput: string;
   setQueryInput: (input: string) => void;
 
-  // Search
-  globalSearchOpen: boolean;
-  setGlobalSearchOpen: (open: boolean) => void;
+  // Command palette
+  commandOpen: boolean;
+  setCommandOpen: (open: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  // Sidebar
-  sidebarCollapsed: false,
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  railPinned: false,
+  toggleRail: () => set((s) => ({ railPinned: !s.railPinned })),
 
-  // Map
-  mapLayers: defaultMapLayers,
-  toggleMapLayer: (layerId) =>
-    set((s) => ({
-      mapLayers: s.mapLayers.map((l) =>
-        l.id === layerId ? { ...l, visible: !l.visible } : l
-      ),
-    })),
-  mapCenter: { lat: 20.5937, lng: 78.9629 }, // India center
+  activeBaseLayer: "esriImagery",
+  setActiveBaseLayer: (id) => set({ activeBaseLayer: id }),
+  mapCenter: { lat: 20.5937, lng: 78.9629 }, // India
   mapZoom: 5,
   setMapCenter: (center) => set({ mapCenter: center }),
   setMapZoom: (zoom) => set({ mapZoom: zoom }),
 
-  // Query
   queryInput: "",
   setQueryInput: (input) => set({ queryInput: input }),
 
-  // Search
-  globalSearchOpen: false,
-  setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
+  commandOpen: false,
+  setCommandOpen: (open) => set({ commandOpen: open }),
 }));

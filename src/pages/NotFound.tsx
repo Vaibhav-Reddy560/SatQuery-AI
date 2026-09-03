@@ -1,24 +1,29 @@
-import { useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { EarthFallback } from "@/components/hero/EarthFallback";
+import { Button } from "@/components/ui/Button";
 
 export default function NotFound() {
-  const navigate = useNavigate();
-
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-bg-tertiary mb-4">
-          <AlertTriangle className="h-7 w-7 text-warning" />
-        </div>
-        <h1 className="text-4xl font-bold text-text-primary mb-2">404</h1>
-        <p className="text-sm text-text-muted mb-6">The page you are looking for does not exist.</p>
-        <button
-          onClick={() => navigate("/")}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Overview
-        </button>
+    <div className="relative flex min-h-[calc(100dvh-var(--shell-topbar-h))] items-center justify-center overflow-hidden px-8">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-[12%] top-1/2 -translate-y-1/2 w-[46rem] opacity-40"
+      >
+        <EarthFallback />
+      </div>
+
+      <div className="relative max-w-md">
+        <div className="text-label uppercase text-text-faint mb-4">Signal lost</div>
+        <h1 className="text-[6rem] leading-none font-thin tracking-[-0.02em] text-gradient">404</h1>
+        <p className="mt-6 text-[1.0625rem] leading-relaxed text-text-secondary">
+          That page is not in orbit. It may have been moved, or it never existed.
+        </p>
+        <Link to="/dashboard" className="inline-block mt-8">
+          <Button variant="primary">
+            <ArrowLeft className="h-4 w-4" /> Back to overview
+          </Button>
+        </Link>
       </div>
     </div>
   );

@@ -1,36 +1,27 @@
-import { cn } from "@/lib/utils";
-import type { AnalysisStatus, ProjectStatus, ReportStatus } from "@/types";
+import { Badge, type BadgeProps } from "./Badge";
 
-type AllStatuses = AnalysisStatus | ProjectStatus | ReportStatus;
+type Status =
+  | "pending" | "processing" | "completed" | "failed"
+  | "active" | "archived" | "draft"
+  | "generated" | "exported";
 
-const statusConfig: Record<AllStatuses, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-warning-muted text-warning" },
-  processing: { label: "Processing", className: "bg-accent-muted text-accent" },
-  completed: { label: "Completed", className: "bg-success-muted text-success" },
-  failed: { label: "Failed", className: "bg-danger-muted text-danger" },
-  active: { label: "Active", className: "bg-success-muted text-success" },
-  archived: { label: "Archived", className: "bg-bg-tertiary text-text-muted" },
-  draft: { label: "Draft", className: "bg-warning-muted text-warning" },
-  generated: { label: "Generated", className: "bg-success-muted text-success" },
-  exported: { label: "Exported", className: "bg-accent-muted text-accent" },
+const CONFIG: Record<Status, { label: string; variant: BadgeProps["variant"] }> = {
+  pending:    { label: "Pending",    variant: "outline" },
+  processing: { label: "Processing", variant: "info" },
+  completed:  { label: "Completed",  variant: "success" },
+  failed:     { label: "Failed",     variant: "danger" },
+  active:     { label: "Active",     variant: "success" },
+  archived:   { label: "Archived",   variant: "default" },
+  draft:      { label: "Draft",      variant: "outline" },
+  generated:  { label: "Generated",  variant: "atmos" },
+  exported:   { label: "Exported",   variant: "info" },
 };
 
-interface StatusBadgeProps {
-  status: AllStatuses;
-  className?: string;
-}
-
-export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusConfig[status] ?? { label: status, className: "bg-bg-tertiary text-text-muted" };
+export function StatusBadge({ status, className }: { status: string; className?: string }) {
+  const cfg = CONFIG[status as Status] ?? { label: status, variant: "default" as const };
   return (
-    <span
-      className={cn(
-        "inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full",
-        config.className,
-        className
-      )}
-    >
-      {config.label}
-    </span>
+    <Badge variant={cfg.variant} className={className}>
+      {cfg.label}
+    </Badge>
   );
 }

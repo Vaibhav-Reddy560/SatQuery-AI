@@ -1,232 +1,163 @@
-import { useState } from "react";
-import {
-  GitCompareArrows,
-  Calendar,
-  MapPin,
-  TrendingUp,
-  TrendingDown,
-  Building2,
-  TreePine,
-  Droplets,
-  LandPlot,
-  Download,
-} from "lucide-react";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Download, Building2, TreePine, Waves, Layers } from "lucide-react";
+import { Page } from "@/components/layout/Page";
+import { Button } from "@/components/ui/Button";
+import { Num, Km2 } from "@/components/ui/Num";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
+import { CompareSlider } from "@/components/ui/CompareSlider";
 import { changeDetectionResult } from "@/data/mockData";
-import type { DetectedChange } from "@/types";
+import { cn, SCREEN_BEZEL, IMAGE_BEZEL } from "@/lib/utils";
 
-const changeTypeConfig: Record<DetectedChange["type"], { icon: React.ComponentType<{ className?: string }>; color: string; label: string }> = {
-  new_construction: { icon: Building2, color: "text-accent", label: "New Construction" },
-  demolition: { icon: Building2, color: "text-danger", label: "Demolition" },
-  vegetation_change: { icon: TreePine, color: "text-success", label: "Vegetation Change" },
-  water_change: { icon: Droplets, color: "text-[#06b6d4]", label: "Water Change" },
-  land_use_change: { icon: LandPlot, color: "text-warning", label: "Land Use Change" },
+const result = changeDetectionResult;
+
+/**
+ * Real acquisition dates from the Esri World Imagery Wayback archive — these
+ * are two genuinely different captures of the same coordinates, not one image
+ * processed twice. See public/imagery/provenance.json.
+ */
+const ACQUIRED = { before: "7 March 2024", after: "5 August 2026" };
+
+const CHANGE_META: Record<string, { icon: React.ComponentType<{ className?: string }>; tone: string }> = {
+  new_construction: { icon: Building2, tone: "text-accent" },
+  demolition: { icon: Layers, tone: "text-danger" },
+  vegetation_change: { icon: TreePine, tone: "text-success" },
+  water_change: { icon: Waves, tone: "text-atmos" },
+  land_use_change: { icon: Layers, tone: "text-warning" },
 };
 
+const STATS = [
+  { key: "totalAreaChanged", label: "Total changed" },
+  { key: "newConstruction", label: "New construction" },
+  { key: "demolished", label: "Demolished" },
+  { key: "vegetationLoss", label: "Vegetation loss" },
+  { key: "vegetationGain", label: "Vegetation gain" },
+] as const;
+
 export default function ChangeDetection() {
-  const result = changeDetectionResult;
-  const [selectedChange, setSelectedChange] = useState<string | null>(null);
-
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
-            <GitCompareArrows className="h-5 w-5 text-accent" />
-            Change Detection
-          </h2>
-          <p className="text-sm text-text-muted mt-1">
-            Compare satellite imagery over time to detect changes
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary bg-bg-tertiary border border-border-default rounded-lg hover:bg-bg-hover transition-colors">
-            <Download className="h-4 w-4" />
-            Export Report
-          </button>
-        </div>
-      </div>
-
-      {/* Comparison Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Before Image */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Before</CardTitle>
-              <div className="flex items-center gap-2 mt-1">
-                <Calendar className="h-3 w-3 text-text-muted" />
-                <span className="text-xs text-text-muted">{result.beforeDate}</span>
-              </div>
-            </div>
-            <Badge variant="info">Before</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="relative aspect-[4/3] bg-bg-primary rounded-lg border border-border-subtle overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#1a2332] to-[#0d1520]">
-                {/* Before state: more green areas */}
-                <svg className="absolute inset-0 w-full h-full opacity-15" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <pattern id="before-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#22c55e" strokeWidth="0.3" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#before-grid)" />
-                </svg>
-                {/* Vegetation areas (before) */}
-                <div className="absolute top-[20%] left-[10%] w-[30%] h-[25%] bg-success/10 border border-success/30 rounded" />
-                <div className="absolute top-[50%] left-[5%] w-[20%] h-[20%] bg-success/10 border border-success/30 rounded" />
-                <div className="absolute top-[30%] left-[45%] w-[25%] h-[30%] bg-success/10 border border-success/30 rounded" />
-                <div className="absolute bottom-[15%] right-[15%] w-[20%] h-[15%] bg-success/10 border border-success/30 rounded" />
-                <div className="absolute bottom-[10%] left-[10%] text-xs text-success/80 font-medium">Mangrove Area</div>
-                <div className="absolute top-[10%] right-[10%] text-xs text-success/80 font-medium">Forest Cover</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* After Image */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>After</CardTitle>
-              <div className="flex items-center gap-2 mt-1">
-                <Calendar className="h-3 w-3 text-text-muted" />
-                <span className="text-xs text-text-muted">{result.afterDate}</span>
-              </div>
-            </div>
-            <Badge variant="warning">After</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="relative aspect-[4/3] bg-bg-primary rounded-lg border border-border-subtle overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#1a2332] to-[#0d1520]">
-                <svg className="absolute inset-0 w-full h-full opacity-15" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <pattern id="after-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#3b82f6" strokeWidth="0.3" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#after-grid)" />
-                </svg>
-                {/* After state: more construction, less green */}
-                <div className="absolute top-[20%] left-[10%] w-[30%] h-[25%] bg-accent/10 border border-accent/30 rounded" />
-                <div className="absolute top-[50%] left-[5%] w-[20%] h-[20%] bg-success/10 border border-success/30 rounded opacity-50" />
-                <div className="absolute top-[30%] left-[45%] w-[25%] h-[30%] bg-accent/10 border border-accent/30 rounded" />
-                <div className="absolute bottom-[15%] right-[15%] w-[20%] h-[15%] bg-warning/10 border border-warning/30 rounded" />
-                <div className="absolute bottom-[10%] left-[10%] text-xs text-danger/80 font-medium">Vegetation Lost</div>
-                <div className="absolute top-[10%] right-[10%] text-xs text-accent/80 font-medium">New Construction</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-2">
-              <LandPlot className="h-4 w-4 text-accent" />
-              <span className="text-xs text-text-muted">Total Changed</span>
-            </div>
-            <div className="text-xl font-bold text-text-primary">{result.statistics.totalAreaChanged} km²</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 className="h-4 w-4 text-accent" />
-              <span className="text-xs text-text-muted">New Construction</span>
-            </div>
-            <div className="text-xl font-bold text-text-primary">{result.statistics.newConstruction} km²</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 className="h-4 w-4 text-danger" />
-              <span className="text-xs text-text-muted">Demolished</span>
-            </div>
-            <div className="text-xl font-bold text-text-primary">{result.statistics.demolished} km²</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingDown className="h-4 w-4 text-danger" />
-              <span className="text-xs text-text-muted">Vegetation Loss</span>
-            </div>
-            <div className="text-xl font-bold text-text-primary">{result.statistics.vegetationLoss} km²</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-xs text-text-muted">Vegetation Gain</span>
-            </div>
-            <div className="text-xl font-bold text-text-primary">{result.statistics.vegetationGain} km²</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detected Changes List */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Detected Changes</CardTitle>
-          <div className="flex items-center gap-2">
-            <StatusBadge status={result.status} />
-            <span className="text-xs text-text-muted flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {result.location}
-            </span>
+    <Page
+      title="Change detection"
+      subtitle={`${result.location} · two acquisitions, ${ACQUIRED.before} and ${ACQUIRED.after}.`}
+      actions={
+        <Button variant="primary" size="sm">
+          <Download className="h-3.5 w-3.5" /> Export report
+        </Button>
+      }
+    >
+      {/* ── The comparison is the hero. Drag to wipe. Chrome housing
+          around the slider — same console-body / inset-screen split as
+          `EarthConsole` and the Explore map, instead of the imagery
+          sitting flush with no frame. A thin `chrome-high` edge frames
+          the screen itself (not just the outer shell), and a slight inset
+          shadow gives the imagery a touch of depth without the heavy
+          sunken-pocket look this had before. ── */}
+      <section>
+        <div className="chrome rounded-lg p-3">
+          <div
+            className="rounded-md overflow-hidden"
+            style={{ border: IMAGE_BEZEL }}
+          >
+            <CompareSlider
+              beforeSrc="/imagery/change-before.jpg"
+              afterSrc="/imagery/change-after.jpg"
+              beforeLabel={ACQUIRED.before}
+              afterLabel={ACQUIRED.after}
+              className="rounded-none"
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {result.changes.map((change) => {
-              const config = changeTypeConfig[change.type];
-              const Icon = config.icon;
+          <div className="mt-3 px-1 flex items-center justify-between gap-4 flex-wrap">
+            <p className="text-xs text-white">Drag to compare · Esri World Imagery Wayback</p>
+            {/* Plain white, not the phosphor `Readout` — this caption sits
+                on the `chrome` housing itself, not a CRT screen, so the
+                terminal layer's bright glowing blue read as a mismatched,
+                harder-to-read accent next to the plain white caption
+                beside it rather than a deliberate contrast. */}
+            <div className="flex items-center gap-2 text-xs text-white">
+              <span className="text-white/60 uppercase tracking-wide">Location</span>
+              <span className="font-medium">{result.location}</span>
+              <StatusBadge status={result.status} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Statistics — CRT terminal readout: these are instrument-
+          derived numbers from this specific analysis, not a dashboard
+          summary (Overview's own headline metrics stay un-boxed on
+          purpose), so they get the same treatment as the project/report
+          cards' and Measurements' text panels. */}
+      <div className="chrome rounded-lg p-3">
+        <div
+          className="crt rounded-md px-5 py-5 bg-bg-primary font-mono text-mono text-phosphor phosphor-glow"
+          style={{ boxShadow: SCREEN_BEZEL }}
+        >
+          {/* `1fr` columns gave every stat the same track width regardless
+              of how short its label/value actually were, so the last
+              column's short text sat with a big gap before the box's own
+              right edge instead of flush against it. `auto` columns
+              (sized to content) plus `justify-between` spread them across
+              the full width instead, with the first flush-left and the
+              last flush-right. */}
+          <div className="grid grid-cols-[repeat(2,auto)] md:grid-cols-[repeat(3,auto)] lg:grid-cols-[repeat(5,auto)] justify-between gap-x-8 gap-y-8">
+            {STATS.map((s) => (
+              <div key={s.key}>
+                <div className="text-[0.6875rem] uppercase tracking-[0.06em] text-phosphor-dim [text-shadow:none] mb-2">
+                  {s.label}
+                </div>
+                <div className="text-[2rem] leading-none font-thin tracking-[-0.012em]">
+                  <Km2 value={result.statistics[s.key]} animate />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Detected changes — same CRT readout list as `LandCover`'s
+          breakdown and Measurements' "Saved" panel. Change-type icons
+          keep their existing tones (they distinguish categories from
+          each other, the same job the land-cover dots do), everything
+          else steps down to `phosphor-dim`. */}
+      <div className="chrome rounded-lg p-3">
+        <div
+          className="crt rounded-md px-5 py-4 bg-bg-primary font-mono text-mono text-phosphor phosphor-glow"
+          style={{ boxShadow: SCREEN_BEZEL }}
+        >
+          <div className="flex items-baseline justify-between gap-4 mb-1">
+            <div className="text-label uppercase text-phosphor-dim [text-shadow:none]">Detected changes</div>
+            <div className="text-[0.6875rem] text-phosphor-dim [text-shadow:none]">
+              {result.changes.length} regions flagged
+            </div>
+          </div>
+          <div className="divide-y divide-chrome-seam/60">
+            {result.changes.map((c) => {
+              const meta = CHANGE_META[c.type] ?? CHANGE_META.land_use_change;
+              const Icon = meta.icon;
               return (
                 <div
-                  key={change.id}
-                  className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                    selectedChange === change.id
-                      ? "border-accent/50 bg-accent-muted/50"
-                      : "border-border-subtle hover:border-border-default hover:bg-bg-hover/50"
-                  }`}
-                  onClick={() => setSelectedChange(selectedChange === change.id ? null : change.id)}
+                  key={c.id}
+                  className="grid grid-cols-1 md:grid-cols-[1fr_7rem_10rem] items-center gap-x-6 gap-y-3 py-5"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-md bg-bg-tertiary ${config.color}`}>
-                      <Icon className="h-4 w-4" />
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <Icon className={cn("h-[1.125rem] w-[1.125rem] shrink-0 mt-0.5", meta.tone)} />
+                    <div className="min-w-0">
+                      <p className="text-body-sm leading-snug">{c.description}</p>
+                      <p className="text-[0.6875rem] text-phosphor-dim [text-shadow:none] mt-1 capitalize">
+                        {c.type.replace(/_/g, " ")}
+                      </p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-text-primary">{config.label}</span>
-                        <Badge variant={change.type === "new_construction" ? "info" : change.type === "vegetation_change" ? "success" : "default"}>
-                          {change.area} km²
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-text-secondary mt-1">{change.description}</p>
-                      <div className="mt-2 w-48">
-                        <ConfidenceBar value={change.confidence} />
-                      </div>
-                    </div>
-                    <button className="px-3 py-1.5 text-xs font-medium text-accent bg-accent-muted rounded-md hover:bg-accent hover:text-white transition-colors shrink-0">
-                      Show on map
-                    </button>
                   </div>
+                  <div className="text-body-sm text-phosphor-dim [text-shadow:none]">
+                    <Num value={c.area} decimals={1} suffix=" km" />
+                    <sup className="text-[0.62em] relative -top-[0.34em]">2</sup>
+                  </div>
+                  <ConfidenceBar value={c.confidence} />
                 </div>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </Page>
   );
 }

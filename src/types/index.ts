@@ -188,12 +188,3 @@ export interface QueryAttachment {
   imageUrl?: string;
   confidence?: number;
 }
-
-// ── Map ───────────────────────────────────────────────────
-
-export interface MapLayer {
-  id: string;
-  name: string;
-  visible: boolean;
-  type: "satellite" | "terrain" | "labels" | "boundaries";
-}

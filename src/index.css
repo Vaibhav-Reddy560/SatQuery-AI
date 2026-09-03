@@ -1,71 +1,500 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg-primary: #0a0b0f;
-  --color-bg-secondary: #111318;
-  --color-bg-tertiary: #181a22;
-  --color-bg-elevated: #1e2028;
-  --color-bg-hover: #252730;
+/* ═══════════════════════════════════════════════════════════
+   BRAND TYPOGRAPHY
+   Maxima Nouva → everything
+   Zrnic        → the logo wordmark ONLY
+   Paths are case-sensitive on Linux: lowercase-hyphenated
+   directories, PascalCase filenames.
+   ═══════════════════════════════════════════════════════════ */
 
-  --color-border-default: #2a2d38;
-  --color-border-subtle: #1e2028;
-
-  --color-text-primary: #e8eaed;
-  --color-text-secondary: #9ca3af;
-  --color-text-muted: #6b7280;
-
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-  --color-accent-muted: rgba(59, 130, 246, 0.15);
-
-  --color-success: #22c55e;
-  --color-success-muted: rgba(34, 197, 94, 0.15);
-  --color-warning: #f59e0b;
-  --color-warning-muted: rgba(245, 158, 11, 0.15);
-  --color-danger: #ef4444;
-  --color-danger-muted: rgba(239, 68, 68, 0.15);
-
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+@font-face {
+  font-family: 'Maxima Nouva';
+  src: url('/fonts/maxima-nouva/MaximaNouva-Thin.otf') format('opentype'),
+       url('/fonts/maxima-nouva/MaximaNouva-Thin.ttf') format('truetype');
+  font-weight: 100 300;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Base reset */
+@font-face {
+  font-family: 'Maxima Nouva';
+  src: url('/fonts/maxima-nouva/MaximaNouva-Regular.otf') format('opentype'),
+       url('/fonts/maxima-nouva/MaximaNouva-Regular.ttf') format('truetype');
+  font-weight: 350 450;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Maxima Nouva';
+  src: url('/fonts/maxima-nouva/MaximaNouva-Italic.otf') format('opentype'),
+       url('/fonts/maxima-nouva/MaximaNouva-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Maxima Nouva';
+  src: url('/fonts/maxima-nouva/MaximaNouva-SemiBold.otf') format('opentype'),
+       url('/fonts/maxima-nouva/MaximaNouva-SemiBold.ttf') format('truetype');
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Maxima Nouva';
+  src: url('/fonts/maxima-nouva/MaximaNouva-Bold.otf') format('opentype'),
+       url('/fonts/maxima-nouva/MaximaNouva-Bold.ttf') format('truetype');
+  font-weight: 650 750;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Maxima Nouva';
+  src: url('/fonts/maxima-nouva/MaximaNouva-ExtraBold.otf') format('opentype'),
+       url('/fonts/maxima-nouva/MaximaNouva-ExtraBold.ttf') format('truetype');
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Display face — logo wordmark only. Never used anywhere else. */
+@font-face {
+  font-family: 'Zrnic';
+  src: url('/fonts/zrnic/Zrnic-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/*
+ * No third face for terminal/mono contexts — Maxima Nouva handles it too
+ * (see `--font-mono` below). A JetBrains Mono pass was tried and reverted:
+ * it read as "code editor," not "tactical HUD console."
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS — v4: metallic / monochrome-blue
+   Rebuilt to a strict palette: true black, a brushed-steel gray
+   family, off-white, and exactly two blues (plus one deep third
+   for glow/fill accents). No green, amber, red or violet anywhere
+   — semantic states are carried by icon + weight + fill, not hue,
+   the same way a single-hue HUD readout differentiates its states.
+   ═══════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── Surfaces — true near-black, no colour cast. */
+  --color-bg-primary:   #060607;
+  --color-bg-secondary: #0d0d0f;
+  --color-bg-tertiary:  #17171a;
+  --color-bg-elevated:  #212124;
+  --color-bg-hover:     #2b2b2f;
+  --color-bg-paper:     #131315;
+
+  /* ── Metal — brushed-steel gray family. Distinct from the near-black
+       surfaces above: this is the "brighter, metallic" layer — panel
+       chrome, dividers, the metallic-panel material (`@utility metal`). */
+  --color-metal-100: #a4a4aa;
+  --color-metal-200: #78787e;
+  --color-metal-300: #4c4c51;
+  --color-metal-400: #313134;
+
+  /* ── Borders */
+  --color-border-default: #2c2c30;
+  --color-border-subtle:  #1a1a1d;
+  --color-border-glass:   rgba(190, 200, 215, 0.10);
+  --color-border-glow:    rgba(93, 156, 255, 0.28);
+
+  /* ── Text — off-white, neutral. */
+  --color-text-primary:   #f2f2f4;
+  --color-text-secondary: #a6a6ac;
+  --color-text-muted:     #77777d;
+  --color-text-faint:     #47474b;
+
+  /*
+   * ── Accent: space blue, the ONE interactive colour in the app.
+   * Every button, link, active state, and focus ring uses this and
+   * nothing else.
+   */
+  --color-accent:        #3d7fff;
+  --color-accent-hover:  #5f97ff;
+  --color-accent-muted:  rgba(61, 127, 255, 0.16);
+  --color-accent-subtle: rgba(61, 127, 255, 0.10);
+
+  /* ── Atmos: the second blue — cooler and lighter. Focus rings, glows,
+       the globe, and (paired with accent) the only other hue permitted. */
+  --color-atmos:        #6fb8ff;
+  --color-atmos-hover:  #91caff;
+  --color-atmos-muted:  rgba(111, 184, 255, 0.14);
+
+  /* ── Deep: the third blue — darker, more saturated. Used for solid
+       fills (a filled badge, a "critical" state) where a state needs to
+       read as urgent through CONTRAST and fill, not through a new hue. */
+  --color-deep:         #1f4fc4;
+  --color-deep-hover:   #3563d6;
+  --color-deep-muted:   rgba(31, 79, 196, 0.18);
+
+  /*
+   * ── Semantic status. No colour-per-concept anymore — every state below
+   * resolves to one of the blues, never gray. Mixing a gray "warning" in
+   * next to blue success/info/danger tags is exactly what read as
+   * inconsistent — gray is reserved for structural chrome (panels,
+   * dividers, the `metal` material), never for a data/status colour.
+   * Meaning is carried by icon + label, and here also by VALUE: success/
+   * info sit at the bright end, warning is pale/muted, danger is the deep
+   * blue SOLID-FILLED so "urgent" reads through contrast, not hue.
+   */
+  --color-success:       #3d7fff;
+  --color-success-hover: #5f97ff;
+  --color-success-muted: rgba(61, 127, 255, 0.16);
+  --color-warning:       #9db8e8;
+  --color-warning-hover: #b8cdf2;
+  --color-warning-muted: rgba(157, 184, 232, 0.16);
+  --color-danger:        #1f4fc4;
+  --color-danger-muted:  rgba(31, 79, 196, 0.20);
+  --color-info:          #6fb8ff;
+  --color-info-muted:    rgba(111, 184, 255, 0.14);
+
+  /*
+   * ── Chrome ramp — Y2K bevel stops for the `chrome`/`chrome-bright`
+   * materials below. Blue-TINTED steel, never neutral grey — keeps the v4
+   * uniformity rule intact (a flat colour is never grey; this ramp is only
+   * ever used as a multi-stop gradient, never as a flat swatch next to a
+   * blue one).
+   */
+  --color-chrome-lit:  #d8e6ff;
+  --color-chrome-high: #7d97c4;
+  /* Lifted brighter and further toward blue (from #2b3648 / #1a2233) — the
+     shell material reads as blue steel rather than near-black slate. */
+  --color-chrome-mid:  #354460;
+  --color-chrome-seam: #0d1220;
+  --color-chrome-low:  #212c44;
+
+  /*
+   * A true neutral silver/steel — deliberately NOT blue-tinted, unlike the
+   * ramp above. Used only as a thin bezel line framing individual screens
+   * (image viewports, CRT panels) inside a `chrome` shell. Direct, repeated
+   * feedback asked for an actual chrome/steel read here, not another blue —
+   * kept as its own token rather than bending `chrome-high` to double duty.
+   */
+  --color-silver: #cdd2da;
+
+  /*
+   * ── Terminal phosphor. Deliberately its OWN colour now, brighter and
+   * more saturated than `atmos` — the first pass reused atmos verbatim and
+   * it read as dim/grey-ish on terminal surfaces instead of glowing. This
+   * sits at the cyan edge of the same blue family (never crosses into
+   * green), paired with `--shadow-phosphor-glow` below for the actual
+   * CRT-glow text-shadow.
+   */
+  --color-phosphor:      #4deeff;
+  /* Lifted from 0.5 to 0.75 opacity — composited over the app's near-black
+     ground, 50% cyan read as a washed-out teal-gray rather than a dimmer
+     blue, and was reported (repeatedly, across many pages) as text having
+     been "greyed out". This is used for every secondary/de-emphasised
+     label inside a CRT panel — one token change fixes all of them at
+     once, rather than needing to touch each call site. */
+  --color-phosphor-dim:  rgba(77, 238, 255, 0.75);
+
+
+  /* ── Radii — tightened scale. `full` is reserved for pills/avatars/dots. */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /*
+   * ── Elevation. Four steps, nothing hand-written outside these.
+   * hairline = inset top highlight (the "@utility edge-lit" companion)
+   * raised   = default card/panel resting state
+   * overlay  = dropdowns, popovers, floating map controls
+   * modal    = dialogs, the command palette
+   */
+  --shadow-hairline: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --shadow-raised:   0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 12px 28px -12px rgba(0, 0, 0, 0.55);
+  --shadow-overlay:  0 4px 12px 0 rgba(0, 0, 0, 0.35), 0 24px 48px -16px rgba(0, 0, 0, 0.65);
+  --shadow-modal:    0 8px 24px 0 rgba(0, 0, 0, 0.45), 0 40px 80px -24px rgba(0, 0, 0, 0.75);
+
+  /* ── Fonts */
+  --font-sans:    'Maxima Nouva', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Zrnic', 'Maxima Nouva', system-ui, sans-serif;
+  --font-mono:    'Maxima Nouva', system-ui, sans-serif;
+
+  /*
+   * ── Type scale. Nine steps — every size in the app must come from here.
+   * Maxima Nouva is NOT SF Pro: its letterforms sit tighter at the same
+   * tracking value, so Apple's own negative-tracking numbers (copied
+   * verbatim in an earlier pass) read as congested here. Every step below
+   * is deliberately looser than the SF convention — roughly half the
+   * negative tracking at the top of the scale, and none at all below
+   * `heading`, where Maxima Nouva needs room to breathe most.
+   */
+  --text-display: 3.5rem;
+  --text-display--line-height: 1.08;
+  --text-display--letter-spacing: -0.015em;
+  --text-display--font-weight: 200;
+
+  --text-title: 2.125rem;
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.008em;
+  --text-title--font-weight: 600;
+
+  --text-heading: 1.5rem;
+  --text-heading--line-height: 1.25;
+  --text-heading--letter-spacing: -0.004em;
+  --text-heading--font-weight: 600;
+
+  --text-subheading: 1.0625rem;
+  --text-subheading--line-height: 1.35;
+  --text-subheading--letter-spacing: 0em;
+  --text-subheading--font-weight: 600;
+
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-body--letter-spacing: 0.006em;
+  --text-body--font-weight: 400;
+
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.55;
+  --text-body-sm--letter-spacing: 0.008em;
+  --text-body-sm--font-weight: 400;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+  --text-caption--letter-spacing: 0.01em;
+  --text-caption--font-weight: 400;
+
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1.2;
+  --text-label--letter-spacing: 0.08em;
+  --text-label--font-weight: 600;
+
+  --text-metric: 2.75rem;
+  --text-metric--line-height: 1.05;
+  --text-metric--letter-spacing: -0.01em;
+  --text-metric--font-weight: 200;
+
+  /*
+   * ── Mono type — terminal readouts (`Terminal`, `Readout`, `AgentTrace`,
+   * coordinates). Wide tracking and uppercase are baked into the token,
+   * the same way `label` bakes in its own tracking above.
+   */
+  --text-mono: 0.8125rem;
+  --text-mono--line-height: 1.6;
+  --text-mono--letter-spacing: 0.02em;
+  --text-mono--font-weight: 400;
+
+  --text-mono-sm: 0.6875rem;
+  --text-mono-sm--line-height: 1.5;
+  --text-mono-sm--letter-spacing: 0.03em;
+  --text-mono-sm--font-weight: 500;
+
+  --text-readout: 0.75rem;
+  --text-readout--line-height: 1.4;
+  --text-readout--letter-spacing: 0.08em;
+  --text-readout--font-weight: 500;
+
+  /* ── Motion */
+  --ease-apple: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SHELL METRICS
+   Pages reference these instead of hardcoding header height or
+   gutter width, so changing the shell never silently breaks a
+   full-bleed page.
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* 64px pill (matches the landing nav's `h-16`) + a 16px floating gap
+     above it, now that the top bar is an inset rounded pill rather than a
+     flush full-bleed strip — this is the TOTAL space the fixed header
+     reserves, not just the pill's own height. */
+  --shell-topbar-h: 80px;
+  --shell-sidebar-w: 248px;
+  /* The sidebar floats — a gapped island, not a flush panel — per the
+     reference layout. Content offset accounts for the gap on both sides. */
+  --shell-sidebar-gap: 16px;
+  --shell-content-pl: calc(var(--shell-sidebar-w) + var(--shell-sidebar-gap) * 2);
+  --shell-gutter: 32px;
+  --shell-inset: 12px;
+
+  /* The one brand gradient — orbital blue into atmospheric cyan. Used on
+     the logo mark and wordmark only, never as a generic decorative wash. */
+  --gradient-brand: linear-gradient(135deg, var(--color-atmos) 0%, #cfe4ff 55%, #ffffff 100%);
+
+  /*
+   * The logo's Y2K treatment — the exact 3-stop gradient supplied (Figma:
+   * A3FFFC at 0%, 00EEFF at 62%, 03C0FF at 100%), STATIC (no animation,
+   * unlike `--gradient-holo` below). The logo needs to read identically
+   * every time, not shift; a `holo`/hue-cycle pass was tried on it and
+   * reverted per direct instruction. Used only by `Logo`/`LogoMark`
+   * (`logo-text` utility, `holo` prop on `LogoMark`) — never the generic
+   * iridescent surface finish other Y2K chrome uses.
+   */
+  --gradient-logo: linear-gradient(115deg, #a3fffc 0%, #00eeff 62%, #03c0ff 100%);
+
+  /*
+   * Iridescent Y2K refraction — surface finish only: an animated gradient
+   * across a whole surface (`holo`/`holo-text`), never a flat swatch.
+   * Reserved for hero display type (the landing headline) — no longer the
+   * logo, which moved to the static `--gradient-logo` above. Blue-to-
+   * cyan-and-back — no violet or pink stop. An earlier pass swept through
+   * both; dropped per direct instruction to keep the whole app inside
+   * blue/cyan only.
+   */
+  --gradient-holo: linear-gradient(
+    115deg,
+    #1f4fc4 0%,
+    #3d7fff 22%,
+    #4deeff 50%,
+    #3d7fff 78%,
+    #1f4fc4 100%
+  );
+
+  /* The terminal-glow text-shadow — CRT phosphor bloom. Not in the `@theme`
+     block: `--shadow-*` there would generate a `box-shadow` utility, and
+     this needs to be a `text-shadow`. Applied via the `phosphor-glow`
+     utility below.
+     `phosphor-glow` is set on a CRT panel's outer container and cascades
+     via `text-shadow` inheritance to every descendant that doesn't
+     explicitly cancel it — which includes plenty of small text (labels,
+     counts, captions) that never asked for it, only avoided it because
+     they happened to also be styled `text-phosphor-dim [text-shadow:none]`
+     dim. The halo here used to reach 18px, more than a full 12px readout
+     glyph's own height, which read as a blur rather than a glow at that
+     scale. Both blur radii are roughly halved — still a visible glow on
+     the large hero numbers this was tuned for, no longer overwhelming the
+     small text that inherits the exact same shadow. */
+  --glow-phosphor: 0 0 1px currentColor, 0 0 4px rgba(77, 238, 255, 0.65), 0 0 9px rgba(77, 238, 255, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════════════════════════ */
+
 *, *::before, *::after {
   box-sizing: border-box;
+}
+
+html {
+  background-color: var(--color-bg-primary);
+  /*
+   * Radix's dropdown/dialog scroll-lock sets `body { overflow: hidden }`
+   * while open. Neither element here sets its own `overflow` otherwise, so
+   * per the CSS overflow-propagation rule the *body's* overflow is what
+   * actually drives the viewport's scrollbar (not html's) — confirmed by
+   * direct measurement: `documentElement.clientWidth` jumped 1430 -> 1440
+   * the instant that inline style landed, and since `TopBar` is `fixed
+   * inset-x-0` (sized to that same viewport), it visibly snapped to the
+   * new width along with everything in it.
+   *
+   * `scrollbar-gutter: stable` on `html`, and even on `body` too, did NOT
+   * fix this — `scrollbar-gutter` apparently isn't part of what gets
+   * propagated the way `overflow` itself is, so reserving it on the
+   * elements Radix touches had no effect on the viewport's own scrollbar.
+   * `overflow-y: scroll` sidesteps the whole propagation question: an
+   * explicit (non-`visible`) overflow on the root takes `html` OUT of the
+   * "defer to body" path entirely, so `html` permanently owns the
+   * viewport's scrollbar and reserves its space unconditionally — Radix
+   * mutating `body` afterward then has nothing left to affect.
+   */
+  overflow-y: scroll;
 }
 
 body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.6;
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+/*
+ * Radix's scroll-lock (via `react-remove-scroll`) injects its own
+ * `<style>` tag at runtime with `body[data-scroll-locked] { margin-right:
+ * <scrollbar-width>px !important; }`, to keep flowing content visually in
+ * place once it also sets `overflow: hidden !important` there. That
+ * compensation is now unneeded — `html`'s `overflow-y: scroll` above means
+ * the real scrollbar never actually disappears — but Radix applies it
+ * unconditionally regardless, and because it's a normal-flow property
+ * (unlike the `fixed` header/sidebar, which don't reflow with it), it
+ * silently shrank `<main>` by that same width every time any dropdown or
+ * dialog opened: confirmed by direct measurement, a project card's own
+ * rendered width dropped 343px -> 340px the instant the account dropdown
+ * opened, which is what looked like the cards "jerking" and their text
+ * reflowing.
+ *
+ * A plain `body { margin-right: 0 !important }` does NOT beat this: Radix's
+ * selector is an attribute selector (`body[data-scroll-locked]`), which
+ * outranks a bare type selector on specificity even between two
+ * `!important` declarations — order only becomes the tiebreaker once
+ * specificity is equal. Matching (or here, slightly exceeding) that
+ * specificity is what actually wins the override.
+ */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
 }
 
 #root {
   min-height: 100vh;
   width: 100%;
+  isolation: isolate;
 }
 
-/* Focus-visible ring for keyboard navigation */
-:focus-visible {
-  outline: 2px solid var(--color-accent);
+::selection {
+  background: var(--color-accent-muted);
+  color: var(--color-text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FOCUS — visible for keyboards, invisible for mice
+   ═══════════════════════════════════════════════════════════ */
+
+/*
+ * `:not(.no-native-focus-ring)` is load-bearing, not decorative. This rule
+ * is plain CSS, outside any `@layer` — and Tailwind wraps every utility
+ * it generates (`focus-visible:outline-none` included) inside `@layer
+ * utilities`. Per the CSS Cascade Layers spec, UNLAYERED rules always beat
+ * LAYERED ones regardless of specificity — so no amount of stacking
+ * Tailwind classes on an element can ever override this rule from a
+ * component file; it can only be excluded here, by name.
+ *
+ * Exempt an element by adding the `no-native-focus-ring` class — for a
+ * composer that already has its own strong, always-visible focus
+ * treatment (a glowing border/ring on the surface around it), where this
+ * outline would draw a second, redundant box tight around just the text.
+ */
+:focus-visible:not(.no-native-focus-ring) {
+  outline: 2px solid var(--color-atmos);
   outline-offset: 2px;
+  border-radius: 6px;
 }
 
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: 4px;
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
-/* Scrollbar styling */
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBARS
+   ═══════════════════════════════════════════════════════════ */
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -73,10 +502,527 @@ a:focus-visible {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-default);
-  border-radius: 3px;
+  background: rgba(150, 190, 255, 0.12);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: rgba(150, 190, 255, 0.24);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+
+/*
+   Maxima Nouva has no `tnum` feature and its digit advances vary from 231u
+   ('1') to 554u ('7'), so this alone will NOT align columns. It is kept as
+   future-proofing if the face is ever swapped; real alignment comes from
+   the <Num> component, which lays digits out in fixed-width cells.
+*/
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/*
+ * Registered so the cursor-tracking glow on interactive `Card`s (see
+ * Card.tsx) can transition smoothly on mouse-leave. An unregistered custom
+ * property can't be animated by a CSS `transition` — the browser has no
+ * type for it to interpolate. `@property` gives it one.
+ */
+@property --glow-x {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+@property --glow-y {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+
+/*
+ * Frosted material. A `backdrop-filter` alone is nearly invisible over this
+ * app's deliberately near-black background — there's not enough colour back
+ * there for blur+saturate to visibly distort. What actually reads as "glass"
+ * (macOS sidebars, iOS sheets) is a surface CLEARLY lighter than what's
+ * around it, a crisp edge, and a soft top sheen — the backdrop-filter is
+ * what makes it feel alive when something does move behind it, not what
+ * makes it legible as a material in the first place.
+ */
+@utility glass {
+  background-color: color-mix(in oklab, var(--color-bg-elevated) 86%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(200, 200, 210, 0.14);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+/*
+ * Brushed steel. A distinct, opaque material (not translucent like `glass`)
+ * for surfaces that should read as physical metal panels — a diagonal
+ * sheen plus a bright top edge, the same logic as a real brushed-aluminium
+ * card catching light along one edge. Reserve for genuine "this is a solid
+ * object" moments, not as a default card background.
+ */
+@utility metal {
+  background-image:
+    linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.12) 48%, transparent 61%),
+    linear-gradient(
+      155deg,
+      var(--color-metal-300) 0%,
+      var(--color-bg-elevated) 45%,
+      var(--color-metal-400) 75%,
+      var(--color-metal-300) 100%
+    );
+  background-size: 250% 250%, 100% 100%;
+  background-position: -50% -50%, 0 0;
+  background-repeat: no-repeat;
+  animation: metal-sheen 7s ease-in-out infinite;
+  border: 1px solid var(--color-metal-300);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* The light-catching sweep on `metal` — only the highlight layer (first in
+   the background-image list) moves; the base gradient underneath it
+   (second layer, "0 0" on both keyframes) never does. */
+@keyframes metal-sheen {
+  0%, 100% { background-position: -50% -50%, 0 0; }
+  50%      { background-position: 150% 150%, 0 0; }
+}
+
+/* Hairline top highlight — the Apple "lit from above" edge */
+@utility edge-lit {
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Text that fades from off-white into the atmosphere blue */
+@utility text-gradient {
+  background: linear-gradient(135deg, #f2f2f4 0%, #b8d4ff 55%, #6fb8ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/*
+ * ── Y2K / Terminal / HUD materials ──────────────────────────────────────
+ * Three aesthetics, each confined to one layer (see the design plan):
+ *   Y2K      → chrome / chrome-bright / aqua / holo / bevel  (shell & chrome)
+ *   Terminal → crt                                            (text output)
+ *   HUD      → hud-grid                                       (imagery field)
+ * Never two of these on the same element. Flat colour swatches stay pure
+ * blue everywhere — iridescence and chrome only ever appear as animated
+ * gradients across a whole surface, never as a flat fill next to a blue one.
+ */
+
+/*
+ * Dark Y2K chrome — "liquid glass." A vertical band with a hard seam at the
+ * midline, at the same VALUE as `metal` above so it never blows out against
+ * the near-black ground. Three things give it depth beyond a flat CSS
+ * gradient: a crisp 1px white specular highlight along the top edge (not
+ * the softer tinted hairline `edge-lit` uses elsewhere — this one needs to
+ * read as a hard light catch, not an ambient glow), a heavier inset blue
+ * bloom deeper inside the panel, and a faint fractal-noise grain (an inline
+ * SVG `feTurbulence` data URI — no image asset) so the surface reads as
+ * actual etched/brushed material rather than a smooth gradient swatch.
+ */
+@utility chrome {
+  /*
+   * The seam was originally a hard 2%-wide cut at full `chrome-seam`
+   * opacity — read as an unwanted dark line down the centre of the nav bar
+   * and chrome cards, not a material seam. Removing it entirely was also
+   * wrong (asked for back, at low intensity) — a chrome panel with NO seam
+   * reads as a flat gradient swatch again. The fix is two separate layers:
+   * a wide, fully-opaque shading band (32%→68%, `chrome-low`) that does
+   * the actual "lit from above" work, plus a much narrower, low-alpha
+   * seam line layered on top of it at the exact midline. Reads as a faint
+   * material seam sitting on soft shading, not a stripe.
+   */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, transparent 47%, rgba(13, 18, 32, 0.4) 50%, transparent 53%),
+    linear-gradient(
+      180deg,
+      var(--color-chrome-mid) 0%,
+      var(--color-chrome-low) 32%,
+      var(--color-chrome-low) 68%,
+      var(--color-chrome-mid) 100%
+    );
+  border: 1px solid var(--color-chrome-seam);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 0 32px -6px rgba(111, 184, 255, 0.4),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * The real bright Y2K silver. Reserved for the logo plate, one CTA per
+ * screen, and the active nav pill — it pops because the field around it is
+ * dark, not because it is used often. Sets its own (dark) text colour so a
+ * child never inherits a light `text-*` token onto a light surface.
+ */
+@utility chrome-bright {
+  background-image: linear-gradient(
+    180deg,
+    #f4f8ff 0%,
+    var(--color-chrome-lit) 46%,
+    var(--color-chrome-high) 50%,
+    var(--color-chrome-lit) 54%,
+    #eef4ff 100%
+  );
+  color: var(--color-chrome-seam);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 0 0 #ffffff,
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.15),
+    0 4px 16px -4px rgba(111, 184, 255, 0.5);
+}
+
+/*
+ * Mac OS X Aqua pill — a gloss cap over the top half of whatever radius the
+ * element already has. `overflow: hidden` on the utility clips the cap to
+ * that radius, so this works on a pill, a squared button, or a card alike
+ * without the cap needing to know the shape.
+ *
+ * The gloss cap itself is a plain `.aqua::before` rule below (not nested
+ * inside this `@utility` block) — Tailwind v4's JIT scanner does not emit
+ * `&`-nested pseudo-elements written inside `@utility`, it silently drops
+ * them. A plain top-level selector isn't subject to that scanning at all,
+ * the same reason the MapLibre overrides further down are written the
+ * same way.
+ */
+@utility aqua {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image: linear-gradient(
+    180deg,
+    var(--color-atmos-hover) 0%,
+    var(--color-accent) 49%,
+    var(--color-deep) 50%,
+    var(--color-accent-hover) 100%
+  );
+  border: 1px solid var(--color-deep);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.65),
+    inset 0 -6px 10px -4px rgba(0, 0, 0, 0.35),
+    0 8px 24px -8px rgba(61, 127, 255, 0.55);
+}
+
+.aqua::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 50% 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+
+/* Iridescent Y2K refraction — animated, never a flat fill. */
+@utility holo {
+  background-image: var(--gradient-holo);
+  background-size: 300% 100%;
+  animation: holo-drift 9s linear infinite;
+}
+
+@utility holo-text {
+  background-image: var(--gradient-holo);
+  background-size: 300% 100%;
+  animation: holo-drift 9s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* The logo wordmark's gradient — static, no `background-size`/animation.
+   See `--gradient-logo` above for why this is separate from `holo-text`. */
+@utility logo-text {
+  background-image: var(--gradient-logo);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@keyframes holo-drift {
+  from { background-position: 0% 50%; }
+  to   { background-position: 300% 50%; }
+}
+
+/*
+ * `holo`/`holo-text` above only reach flat backgrounds and text — an SVG
+ * fill (the logo mark) can't use `background-clip: text`. `hue-cycle`
+ * gives the same iridescent read to an SVG gradient instead, by rotating
+ * hue on the whole element via the CSS `filter` property. Used on
+ * `LogoMark`'s root `<svg>`.
+ *
+ * Deliberately NOT a full 0→360 rotation — that would sweep the mark's
+ * blue (~209°) through green, yellow, orange and red before it got back
+ * around. The swing is a small NEGATIVE rotation (blue → cyan → blue),
+ * matching `--gradient-holo`'s own blue/cyan-only palette — never violet,
+ * pink, or any warm hue.
+ */
+@keyframes hue-cycle {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50%      { filter: hue-rotate(-28deg); }
+}
+
+/* The period raised/pressed border — light top-left, dark bottom-right (or
+   inverted for `-in`, a "pressed" control). Cheap, unmistakably Y2K. */
+@utility bevel {
+  border: 1px solid var(--color-chrome-seam);
+  box-shadow:
+    inset 1px 1px 0 0 rgba(255, 255, 255, 0.35),
+    inset -1px -1px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+@utility bevel-in {
+  border: 1px solid var(--color-chrome-seam);
+  box-shadow:
+    inset -1px -1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 1px 1px 0 0 rgba(0, 0, 0, 0.6);
+}
+
+/* CRT scanlines, terminal surfaces only. Phosphor-tinted, low-alpha —
+   texture, not a legibility hazard for the mono text sitting on top. The
+   scanline layer is the plain `.crt::before` rule below, for the same
+   nesting-doesn't-survive-`@utility` reason documented on `.aqua::before`
+   above. */
+@utility crt {
+  position: relative;
+  isolation: isolate;
+}
+
+/*
+ * `::before`, not `::after` — generated content paints in DOM order, so an
+ * `::after` (inserted last) painted on top of every normal child inside
+ * it, including any button/pill's own background and border. Buttons
+ * sitting on a `crt` surface (the category filter pills, suggested-query
+ * buttons, etc.) read as if their own fill sat "behind" the scanlines —
+ * threaded through with faint dark bands cutting across their solid
+ * background. Plain text over the scanlines was never a problem (thin
+ * glyphs read fine through a 5%-alpha texture); a filled, bordered button
+ * surface visibly was. `::before` paints first, underneath every regular
+ * child, with zero per-button z-index patching required anywhere in the app.
+ */
+.crt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(111, 184, 255, 0.05) 0px,
+    rgba(111, 184, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: crt-flicker 6s ease-in-out infinite;
+}
+
+@keyframes crt-flicker {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+  52%      { opacity: 0.9; }
+}
+
+/* Fine technical grid, for the field under imagery/instruments (HUD layer
+   only — never under body text). */
+@utility hud-grid {
+  background-image:
+    linear-gradient(rgba(111, 184, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(111, 184, 255, 0.055) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/*
+ * CRT phosphor bloom — the terminal layer's text needs to read as GLOWING,
+ * not just coloured. `--color-phosphor` alone (even brightened) still sat
+ * flat against near-black without it. Reserve for the terminal surfaces
+ * where the glow is the point (`Terminal`, `BootSequence`, `Readout`'s most
+ * prominent instances) — applying it to every small mono caption
+ * app-wide would be gratuitous, not "terminal."
+ */
+@utility phosphor-glow {
+  text-shadow: var(--glow-phosphor);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(2%, -2%, 0) scale(1.04); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* HUD radar sweep — a bar (or gradient band) translating across its
+   container. Used by `ScanSweep.tsx` for in-progress states. */
+@keyframes scan-sweep {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* Terminal block caret. Used by `Terminal.tsx`/`TypeOut.tsx`. */
+@keyframes caret-blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Marquee scroll for `TelemetryTicker` — the content is duplicated once, so
+   translating by exactly -50% loops seamlessly with no visible seam/jump. */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* HUD target-lock — a reticle overshooting in then settling on its mark.
+   Used by `Reticle.tsx`. */
+@keyframes reticle-lock {
+  0%   { transform: scale(1.6); opacity: 0; }
+  60%  { transform: scale(0.92); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/*
+ * ── `SatelliteScreen.tsx`, the sidebar instrument panel ──
+ *
+ * The body itself only ever TRANSLATES. An earlier pass turned the whole
+ * vehicle in 3D (`rotateY` against a `perspective`) and a specular band
+ * raked across the arrays; both were rejected — the yaw read as the
+ * satellite rhythmically compressing and expanding, and the band read as
+ * glare. So: the bus just drifts, and the moving parts are the ones that
+ * actually move on a spacecraft — the arrays tracking the sun, the dish
+ * steering, and the downlink leaving the dish.
+ *
+ * Each keyframe owns exactly ONE element's `transform`: a CSS animation
+ * replaces `transform` wholesale every frame, so these must be nested on
+ * separate nodes, never stacked on one.
+ */
+@keyframes sat-float {
+  0%   { transform: translateY(-5px); }
+  50%  { transform: translateY(5px); }
+  100% { transform: translateY(-5px); }
+}
+
+/* Solar array drive tracking the sun — the wings rotate about the boom
+   axis, which from this side-on view foreshortens them vertically. Kept
+   subtle and slow: it should read as articulation, not as a pulse. */
+@keyframes sat-array-track {
+  0%   { transform: scaleY(1); }
+  50%  { transform: scaleY(0.86); }
+  100% { transform: scaleY(1); }
+}
+
+/* Downlink leaving the high-gain dish — concentric wavefronts expanding
+   along boresight and fading out. Three copies run this staggered.
+   They start at the dish face (~0.8) and travel well clear of the
+   reflector: at 1.75 they only just cleared the rim and read as barely
+   moving. The arcs carry `vector-effect: non-scaling-stroke` so they
+   stay hairline-thin instead of fattening as they grow. */
+@keyframes sat-signal {
+  0%   { transform: scale(0.8); opacity: 0; }
+  12%  { opacity: 0.85; }
+  100% { transform: scale(3.6); opacity: 0; }
+}
+
+/* The high-gain dish steering a few degrees off boresight, independent of
+   the bus — reads as tracking a ground station across the pass. */
+@keyframes sat-gimbal {
+  0%   { transform: rotate(-7deg); }
+  50%  { transform: rotate(7deg); }
+  100% { transform: rotate(-7deg); }
+}
+
+/* Starfield scrolling past, for orbital motion. Two identical layers run
+   this, the second parked one full height higher (`-top-full`): as the
+   first clears the bottom edge the second lands exactly where it began,
+   so the loop tiles with no seam and needs no delay offset. */
+@keyframes star-drift {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+/* Adapted from Magic UI's ShimmerButton (magicui.design/docs/components/
+   shimmer-button) — same conic-gradient spark technique, used by
+   `ShimmerButton.tsx` for the landing page's one primary CTA. */
+@keyframes shimmer-slide {
+  to { transform: translate(calc(100cqw - 100%), 0); }
+}
+@keyframes spin-around {
+  0%             { transform: translateZ(0) rotate(0deg); }
+  15%, 35%       { transform: translateZ(0) rotate(90deg); }
+  65%, 85%       { transform: translateZ(0) rotate(270deg); }
+  100%           { transform: translateZ(0) rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAPLIBRE — strip the vendor chrome so the map reads as ours
+   ═══════════════════════════════════════════════════════════ */
+
+.maplibregl-ctrl-attrib {
+  background: rgba(3, 6, 14, 0.7) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 999px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 10px !important;
+  padding: 2px 10px !important;
+  /* MapLibre's own stylesheet sets a dark colour on this element, meant for
+     a light-background map control bar — we never overrode it, only the
+     `a` (link) colour below, so the Esri credit line (plain text, no link)
+     rendered near-black on our near-black pill and was effectively
+     invisible. */
+  color: var(--color-text-secondary) !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--color-text-secondary) !important;
+}
+
+.maplibregl-ctrl-logo {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,137 +1,132 @@
-import { NavLink } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Globe,
-  MessageSquare,
-  ScanSearch,
-  GitCompareArrows,
-  Layers,
-  Ruler,
-  FolderOpen,
-  FileText,
-  Settings,
-  HelpCircle,
-  ChevronLeft,
-  Satellite,
-} from "lucide-react";
-import { useAppStore } from "@/store/useAppStore";
+import { NavLink, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { PRIMARY, ANALYSIS, TRAILING, type NavLinkDef } from "./navConfig";
+import { SatelliteScreen } from "@/components/ui/SatelliteScreen";
+import { useIsFullscreen } from "@/hooks/useIsFullscreen";
 import { cn } from "@/lib/utils";
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
+/**
+ * The app's primary navigation. Persistent on the left at `lg` and above;
+ * below that, `MobileNav` covers the same routes in a drawer.
+ *
+ * This replaced a horizontal nav crammed into `TopBar` — every route lived
+ * one level away from becoming an unlabelled overflow menu. A left rail is
+ * the conventional home for primary navigation in a workspace app (Finder,
+ * Mail, Linear, Notion); the top bar is reserved for page-transient
+ * controls (search, notifications, account) instead of competing for the
+ * same job.
+ */
 
-const navSections: { title: string; items: NavItem[] }[] = [
-  {
-    title: "WORKSPACE",
-    items: [
-      { to: "/", label: "Overview", icon: LayoutDashboard },
-      { to: "/explore", label: "Explore", icon: Globe },
-      { to: "/query", label: "Query", icon: MessageSquare },
-    ],
-  },
-  {
-    title: "ANALYSIS",
-    items: [
-      { to: "/object-detection", label: "Object Detection", icon: ScanSearch },
-      { to: "/change-detection", label: "Change Detection", icon: GitCompareArrows },
-      { to: "/land-cover", label: "Land Cover", icon: Layers },
-      { to: "/measurements", label: "Measurements", icon: Ruler },
-    ],
-  },
-  {
-    title: "PROJECT",
-    items: [
-      { to: "/projects", label: "Projects", icon: FolderOpen },
-      { to: "/reports", label: "Reports", icon: FileText },
-    ],
-  },
+// Every group now carries a heading — previously only the middle one
+// ("Analysis") did, leaving the other two groupings unexplained gaps with
+// no indication of why their items were set apart from one another.
+const SECTIONS: { title: string; items: NavLinkDef[] }[] = [
+  { title: "Workspace", items: PRIMARY },
+  { title: "Analysis", items: ANALYSIS },
+  { title: "Library", items: TRAILING },
 ];
 
-const bottomNav: NavItem[] = [
-  { to: "/settings", label: "Settings", icon: Settings },
-  { to: "/help", label: "Help", icon: HelpCircle },
-];
-
-function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
-  const Icon = item.icon;
+function NavGroup({ title, items }: { title: string; items: NavLinkDef[] }) {
   return (
-    <NavLink
-      to={item.to}
-      end={item.to === "/"}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors",
-          isActive
-            ? "bg-accent-muted text-accent font-medium"
-            : "text-text-secondary hover:text-text-primary hover:bg-bg-hover"
-        )
-      }
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      {!collapsed && <span>{item.label}</span>}
-    </NavLink>
+    <div>
+      {/* `text-atmos`, not the standard `text-text-faint` eyebrow — that
+          token was reported as effectively invisible here, and explicit
+          feedback asked for a light blue specifically WITHOUT a glow, so
+          this is plain colour with no `phosphor-glow`/text-shadow. */}
+      <div className="px-3 mb-1.5 text-label uppercase text-atmos">{title}</div>
+      {/* Each item reads as a hardware button — `bevel` raised at rest,
+          `bevel-in` (pressed) for whichever page is current — the same
+          two states the Earth console's deck uses for its active toggles,
+          rather than a plain flat-highlight nav list. Solid `bg-bg-hover`
+          (not the `/40` it used to carry) so these match the top bar's
+          Search/Notifications/Account controls exactly: at 40% the blue
+          chrome shell read straight through and the buttons came out
+          washed-out blue instead of the dark keycaps up in the bar. */}
+      <ul className="space-y-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <li key={item.to}>
+              <NavLink
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 h-10 pl-4 pr-3 rounded-md text-body-sm text-text-primary transition-colors duration-150",
+                    isActive
+                      ? "bevel-in bg-accent-muted font-medium"
+                      : "bevel bg-bg-hover hover:bg-bg-hover/70"
+                  )
+                }
+              >
+                {/* White at rest AND active — this used to step the icon
+                    down to `text-text-muted` (grey) at rest and flip it to
+                    `text-accent` (blue) when active. Direct feedback: keep
+                    both label and icon white throughout for legibility,
+                    let the pill's own bevel-in + accent-muted background
+                    carry the "current page" signal instead of the icon. */}
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  // Direct feedback: no scrollbar in the nav list while the browser is
+  // fullscreen (F11 or the Fullscreen API both recover the vertical space
+  // browser chrome normally takes, which is usually enough on its own) —
+  // windowed mode keeps the scroll as a fallback for shorter viewports.
+  const isFullscreen = useIsFullscreen();
 
   return (
     <aside
-      className={cn(
-        "h-screen flex flex-col bg-bg-secondary border-r border-border-default transition-all duration-200",
-        sidebarCollapsed ? "w-16" : "w-60"
-      )}
+      className="hidden lg:flex fixed z-40 w-[var(--shell-sidebar-w)] flex-col chrome rounded-2xl shadow-overlay"
+      style={{
+        top: "calc(var(--shell-topbar-h) + var(--shell-sidebar-gap))",
+        left: "var(--shell-sidebar-gap)",
+        height: "calc(100dvh - var(--shell-topbar-h) - var(--shell-sidebar-gap) * 2)",
+      }}
     >
-      {/* Brand */}
-      <div className="flex items-center justify-between px-4 h-14 border-b border-border-subtle">
-        {!sidebarCollapsed && (
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Satellite className="h-5 w-5 text-accent shrink-0" />
-            <div className="min-w-0">
-              <div className="text-sm font-bold tracking-wide text-text-primary">SATQUERY</div>
-              <div className="text-[10px] text-text-muted tracking-wider uppercase">Satellite Intelligence</div>
-            </div>
-          </div>
+      {/* No `flex-1` — that made the nav absorb all the free space and
+          left the dead gap inside it. At `flex: 0 1 auto` it sizes to its
+          own content and the free space falls through to the instrument
+          panel below; `min-h-0` keeps it able to shrink and scroll when
+          the viewport is too short for both. */}
+      <nav
+        aria-label="Primary"
+        className={cn(
+          "min-h-0 px-3 pt-5 pb-4 space-y-5",
+          isFullscreen ? "overflow-y-hidden" : "overflow-y-auto"
         )}
-        {sidebarCollapsed && <Satellite className="h-5 w-5 text-accent mx-auto" />}
-        <button
-          onClick={toggleSidebar}
-          className="p-1 rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors"
-          aria-label="Toggle sidebar"
-        >
-          <ChevronLeft
-            className={cn("h-4 w-4 transition-transform", sidebarCollapsed && "rotate-180")}
-          />
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-5">
-        {navSections.map((section) => (
-          <div key={section.title}>
-            {!sidebarCollapsed && (
-              <div className="px-3 mb-1.5 text-[10px] font-semibold tracking-widest text-text-muted uppercase">
-                {section.title}
-              </div>
-            )}
-            <div className="space-y-0.5">
-              {section.items.map((item) => (
-                <SidebarLink key={item.to} item={item} collapsed={sidebarCollapsed} />
-              ))}
-            </div>
-          </div>
+      >
+        {SECTIONS.map((section, i) => (
+          <NavGroup key={i} title={section.title} items={section.items} />
         ))}
       </nav>
 
-      {/* Bottom nav */}
-      <div className="border-t border-border-subtle py-2 px-2 space-y-0.5">
-        {bottomNav.map((item) => (
-          <SidebarLink key={item.to} item={item} collapsed={sidebarCollapsed} />
-        ))}
+      {/* Fills whatever is left between the nav list and "Back to site" —
+          an instrument readout rather than dead chrome. Outside the
+          `<nav>`: it is decorative, not a navigation destination. */}
+      <div className="min-h-[14rem] flex-1 px-3 pb-4">
+        <SatelliteScreen className="h-full" />
+      </div>
+
+      {/* Pinned below the scrollable nav, not inside it — this leaves the
+          workspace for the marketing site, so it reads as a distinct exit
+          rather than one more destination in the primary route list. Same
+          `bevel` hardware-button treatment as every other nav item. */}
+      <div className="shrink-0 px-3 pb-4 pt-3 border-t border-chrome-seam">
+        <Link
+          to="/"
+          className="bevel flex items-center gap-3 h-10 pl-4 pr-3 rounded-md bg-bg-hover text-body-sm text-text-primary transition-colors duration-150 hover:bg-bg-hover/70"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          <span className="truncate">Back to site</span>
+        </Link>
       </div>
     </aside>
   );

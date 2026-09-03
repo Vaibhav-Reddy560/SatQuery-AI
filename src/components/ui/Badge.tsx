@@ -1,31 +1,34 @@
+import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-type BadgeVariant = "default" | "success" | "warning" | "danger" | "info";
+const badge = cva(
+  [
+    "inline-flex items-center gap-1.5 shrink-0",
+    "px-2.5 py-1 rounded-full",
+    "text-[0.6875rem] font-semibold leading-none tracking-[0.01em]",
+    "border",
+  ],
+  {
+    variants: {
+      variant: {
+        default: "bg-bg-tertiary text-text-secondary border-border-subtle",
+        accent: "bg-accent-muted text-accent border-accent-muted",
+        atmos: "bg-atmos-muted text-atmos border-atmos-muted",
+        success: "bg-success-muted text-success border-success-muted",
+        warning: "bg-warning-muted text-warning border-warning-muted",
+        danger: "bg-danger-muted text-danger border-danger-muted",
+        info: "bg-info-muted text-info border-info-muted",
+        outline: "bg-transparent text-text-muted border-border-default",
+      },
+    },
+    defaultVariants: { variant: "default" },
+  }
+);
 
-interface BadgeProps {
-  children: React.ReactNode;
-  variant?: BadgeVariant;
-  className?: string;
-}
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badge> {}
 
-const variantStyles: Record<BadgeVariant, string> = {
-  default: "bg-bg-tertiary text-text-secondary",
-  success: "bg-success-muted text-success",
-  warning: "bg-warning-muted text-warning",
-  danger: "bg-danger-muted text-danger",
-  info: "bg-accent-muted text-accent",
-};
-
-export function Badge({ children, variant = "default", className }: BadgeProps) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full",
-        variantStyles[variant],
-        className
-      )}
-    >
-      {children}
-    </span>
-  );
+export function Badge({ className, variant, ...props }: BadgeProps) {
+  return <span className={cn(badge({ variant }), className)} {...props} />;
 }
