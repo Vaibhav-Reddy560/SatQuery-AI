@@ -6,7 +6,7 @@
 
 <br />
 
-[![Typing SVG](https://readme-typing-svg.demolab.com/?font=JetBrains+Mono&weight=500&size=22&duration=2800&pause=900&color=6FB8FF&center=true&vCenter=true&width=720&height=50&lines=Ask+Earth+Anything.;Natural-language+queries+over+satellite+imagery.;Object+detection+%C2%B7+change+detection+%C2%B7+land+cover.;Built+for+Smart+India+Hackathon+2026.)](https://github.com/Vaibhav-Reddy560/SatQuery-AI)
+[![Typing SVG](https://readme-typing-svg.demolab.com/?font=Orbitron&weight=700&size=20&duration=2800&pause=900&color=3D7FFF&center=true&vCenter=true&width=760&height=50&lines=Ask+Earth+Anything.;Draw+an+area.+Query+only+that.;Detection+%C2%B7+Change+%C2%B7+Land+cover+%C2%B7+Measurement.;SIH+2026+-+Problem+Statement+SIH26167.)](https://github.com/Vaibhav-Reddy560/SatQuery-AI)
 
 ```
 ORBITAL LINK ......... OK
