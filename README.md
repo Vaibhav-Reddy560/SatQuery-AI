@@ -1,326 +1,260 @@
 <div align="center">
 
-# 🛰️ SatQuery
+<img src="https://capsule-render.vercel.app/api?type=waving&height=210&color=0:0D1220,50:354460,100:3D7FFF&text=SatQuery%20AI&fontColor=F2F2F4&fontSize=62&fontAlignY=38&animation=fadeIn&section=header" width="100%" alt="SatQuery AI" />
 
-### Satellite Intelligence Platform
+<img src="public/brand/satquery-icon-512.png" width="120" alt="SatQuery AI logo" />
 
-**An interactive vision-language assistant for remote sensing and satellite image analysis.**
+<br />
 
-Built for **SIH 2026** — Smart India Hackathon
+[![Typing SVG](https://readme-typing-svg.demolab.com/?font=JetBrains+Mono&weight=500&size=22&duration=2800&pause=900&color=6FB8FF&center=true&vCenter=true&width=720&height=50&lines=Ask+Earth+Anything.;Natural-language+queries+over+satellite+imagery.;Object+detection+%C2%B7+change+detection+%C2%B7+land+cover.;Built+for+Smart+India+Hackathon+2026.)](https://github.com/Vaibhav-Reddy560/SatQuery-AI)
 
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite)](https://vite.dev)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
-[![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-6-333?logo=maplibre)](https://maplibre.org)
+```
+ORBITAL LINK ......... OK
+SENSOR ARRAY .......... OK
+VISION MODEL ........... READY
+4 CAPABILITIES ONLINE
+```
+
+[![CI](https://github.com/Vaibhav-Reddy560/SatQuery-AI/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/Vaibhav-Reddy560/SatQuery-AI/actions/workflows/backend-ci.yml)
+![React](https://img.shields.io/badge/React-19-3D7FFF?style=for-the-badge&logo=react&logoColor=white&labelColor=0D1220)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3D7FFF?style=for-the-badge&logo=typescript&logoColor=white&labelColor=0D1220)
+![Vite](https://img.shields.io/badge/Vite-8-3D7FFF?style=for-the-badge&logo=vite&logoColor=white&labelColor=0D1220)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4-3D7FFF?style=for-the-badge&logo=tailwindcss&logoColor=white&labelColor=0D1220)
+![MapLibre](https://img.shields.io/badge/MapLibre_GL-6-6FB8FF?style=for-the-badge&logo=maplibre&logoColor=white&labelColor=0D1220)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-6FB8FF?style=for-the-badge&logo=fastapi&logoColor=white&labelColor=0D1220)
+![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-3D7FFF?style=for-the-badge&logo=vercel&logoColor=white&labelColor=0D1220)
+
+</div>
+
+<br />
+
+## Overview
+
+**SatQuery AI** is a conversational satellite-intelligence workspace — ask a question in plain English, draw an area of interest on the map, and get object detection, change detection, land-cover classification and measurements back as structured, explainable results.
+
+Built for **Smart India Hackathon 2026** (Problem Statement **SIH26167**), it pairs a full interactive mapping dashboard with a FastAPI backend structured around real remote-sensing benchmarks (**BigEarthNet**, **VRSBench**), ready for a trained vision-language model to be dropped in behind the same API surface.
+
+<div align="center">
+
+**[Report a bug](../../issues)** &nbsp;·&nbsp; **[Request a feature](../../issues)**
 
 </div>
 
 ---
 
-## Overview
+### Contents
 
-SatQuery is a **conversational satellite intelligence platform** that lets users explore satellite imagery, ask natural-language questions, detect objects, compare imagery over time, perform land-use analysis, measure areas, and generate reports — all through an intuitive dark-first dashboard.
-
-> **Current status:** Frontend product template with mock analysis engine. AI, satellite APIs, authentication, and backend are not yet connected.
+[Features](#features) · [Design system](#design-system) · [Architecture](#architecture) · [Tech stack](#tech-stack) · [Getting started](#getting-started) · [Deployment](#deployment) · [Roadmap](#roadmap) · [Team](#team)
 
 ---
 
-## ✨ Key Features
+## Features
 
-### 🗺️ Interactive Map Workspace
-- **MapLibre GL JS** powered map with raster tile layers
-- Zoom, pan, fullscreen controls
-- **Location search** via OpenStreetMap Nominatim (free, no API key)
-- **Drawing tools** — rectangle, polygon, circle, freehand selection
-- **Layer switching** — OSM, CartoDB Dark, CartoDB Light basemaps
-- **Live cursor coordinates** display
-- **Area selection** with approximate km² calculation
+<table>
+<tr>
+<td width="33%" valign="top">
 
-### 💬 Conversational Query Engine
-- Natural-language intent recognition (regex-based, 11 intent types)
-- **Mock analysis pipeline:** Query → Parser → Intent → Tool → Result → Response
-- Recognized intents: object detection, water body detection, change detection, land cover classification, vegetation loss, deforestation, area/distance/perimeter measurement, crop health
-- Processing spinner with intent label feedback
-- Response attachments (image overlays, data cards) with confidence bars
-- Suggested follow-up actions
+### 💬 Natural-language query
+Ask in plain English. The agent parses intent, selects the right analysis tool, runs it, and shows its working — no dropdowns, no forms.
 
-### 📊 Dashboard Analytics
-- Real-time stat cards (images analyzed, areas, objects, changes)
-- Weekly activity bar chart, monthly trend area chart
-- Workspace preview with quick navigation
-- Activity timeline with status badges
+</td>
+<td width="33%" valign="top">
 
-### 🔍 Analysis Pages
-| Page | Capabilities |
-|------|-------------|
-| **Object Detection** | Bounding box visualization, category filtering, confidence bars, detection table |
-| **Change Detection** | Before/after comparison, change statistics, per-change confidence |
-| **Land Cover** | Classification map, percentage breakdown, analysis summary |
-| **Measurements** | Distance, area, perimeter tools with interactive canvas and history |
-| **Projects** | Project cards with search, status filters, analysis counts |
-| **Reports** | Report list with preview pane, simulated report content |
+### 🔍 Object detection
+Buildings, vehicles, vessels, solar arrays and infrastructure, grounded to the pixel with confidence scores per feature.
 
----
+</td>
+<td width="33%" valign="top">
 
-## 🏗️ Architecture
+### 🔀 Bi-temporal change detection
+Compare two passes over the same area and quantify exactly what appeared, vanished or shifted between them.
 
-```
-src/
-├── components/
-│   ├── layout/          # AppShell, Sidebar, Header
-│   ├── map/             # MapCanvas, MapControls, LayerPanel, DrawingToolbar,
-│   │                    # SearchBar, CoordinatesDisplay, SelectionOverlay
-│   └── ui/              # Badge, Card, StatCard, StatusBadge, ConfidenceBar
-├── pages/               # 11 route pages (Overview → NotFound)
-├── services/
-│   ├── queryParser.ts   # Intent recognition from natural language
-│   ├── analysisTools.ts # Tool registry (maps intents → tools)
-│   ├── analysisRunner.ts# Mock analysis implementations (9 tools)
-│   └── queryEngine.ts   # Pipeline orchestrator
-├── hooks/
-│   └── useMapInteraction.ts  # Map state (cursor, draw tools, selection)
-├── store/
-│   └── useAppStore.ts   # Zustand global state
-├── types/
-│   ├── index.ts         # Domain types
-│   ├── map.ts           # Map-specific types
-│   └── query.ts         # Query pipeline types
-├── data/
-│   └── mockData.ts      # Realistic mock data (India-centric)
-├── lib/
-│   ├── utils.ts         # cn() utility
-│   ├── format.ts        # Date formatting helpers
-│   └── tileSources.ts   # Tile source configuration
-└── index.css            # Tailwind v4 with dark theme tokens
-```
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
 
-### Query Pipeline
+### 🗺️ Land cover classification
+Segment vegetation, water, built-up and barren classes against the CORINE taxonomy, with per-class area breakdowns.
 
-```
-User Query
-    ↓
-Query Parser (regex intent recognition)
-    ↓
-QueryIntent { type, location, centre, confidence }
-    ↓
-Tool Selection (registry lookup)
-    ↓
-Analysis Runner (mock implementation)
-    ↓
-AnalysisResult { detection | change | land_cover | measurement }
-    ↓
-Response Formatter → { markdown text, attachments, suggested actions }
-    ↓
-Chat UI (with processing indicator)
-```
+</td>
+<td width="33%" valign="top">
 
-**Swapping to real AI:** Replace `queryParser.ts` with an LLM API call, replace `analysisRunner.ts` with actual satellite analysis APIs. The `QueryIntent` and `AnalysisOutput` types stay the same — the rest of the pipeline doesn't change.
+### 📏 Measurement
+Distance, area and perimeter, drawn straight onto the imagery with sub-meter geodesic precision.
+
+</td>
+<td width="33%" valign="top">
+
+### 🛰️ Map workspace
+Pan a live satellite basemap, draw an area of interest with rectangle / polygon / circle / freehand tools, and query only what's selected.
+
+</td>
+</tr>
+</table>
+
+Everything above lives behind one consistent workspace shell:
+
+| Section | Pages |
+|---|---|
+| **Workspace** | Overview dashboard · Map Explore · Conversational Query |
+| **Analysis** | Object Detection · Change Detection · Land Cover · Measurements |
+| **Library** | Projects · Reports |
+
+<details>
+<summary><strong>What's real vs. what's mocked, honestly</strong></summary>
+<br>
+
+The frontend, API surface, database schema and evaluation harness are fully built and wired end-to-end. The inference layer behind `/api/v1/query` currently runs a deterministic regex + heuristics engine rather than a trained model — it exists so the entire pipeline (intent → tool selection → structured result → formatted response) can be demoed and load-tested before a real vision-language model is dropped in behind the exact same interface. The `BigEarthNet` and `VRSBench` evaluation endpoints are wired against the actual published benchmark task structure, ready to score a real model once one is attached.
+
+</details>
 
 ---
 
-## 🚀 Getting Started
+## Design system
 
-### Prerequisites
+The whole app runs on a **monochrome-blue / brushed-metal** language rather than the flat dark-mode-with-accent-color look most dashboards default to:
 
-- **Node.js** ≥ 18
-- **npm** ≥ 9
+- **Chrome & bevel** — every interactive surface (nav items, buttons, panels) reads as a physical hardware key: raised at rest, pressed-in when active, with real inset highlight/shadow, not a flat colour swap.
+- **One accent, used sparingly** — a single blue (`#3D7FFF`) carries every "this matters" signal; everything else is graphite, chrome and near-black so the accent never has to compete.
+- **HUD instrumentation** — live telemetry tickers, scan-line sweeps, a CRT-style satellite readout panel and a boot sequence give the workspace the feel of mission control, not a generic admin template.
+- **Typeface** — Maxima Nouva throughout the UI; Zrnic reserved exclusively for the wordmark.
 
-### Installation
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph FE["Frontend — Vite + React 19"]
+        Pages["Pages & Components"]
+        Store["Zustand store"]
+        Map["MapLibre GL"]
+        Pages --> Store
+        Pages --> Map
+    end
+
+    subgraph BE["Backend — FastAPI"]
+        API["/api/v1 REST routes"]
+        Engine["VLM inference engine"]
+        GIS["GIS processor"]
+        DB[("PostgreSQL")]
+        API --> Engine
+        API --> GIS
+        API --> DB
+    end
+
+    Pages -- "fetch /api/v1/*" --> API
+```
+
+Deployed as a single **Vercel** project using [Services](https://vercel.com/docs/services): the Vite frontend and the FastAPI backend build and ship independently but serve from one domain — `/api/*` routes to the backend, everything else to the frontend.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React 19 · TypeScript 6 |
+| Bundler | Vite 8 |
+| Styling | Tailwind CSS 4 |
+| State | Zustand |
+| Routing | React Router 7 |
+| Maps | MapLibre GL JS |
+| 3D | React Three Fiber (landing page Earth) |
+| Motion | Motion (Framer Motion) |
+| Charts | Recharts |
+| Backend | FastAPI · SQLAlchemy · PostgreSQL |
+| Auth | python-jose (JWT) |
+| Testing | Pytest |
+
+---
+
+## Getting started
+
+### Frontend
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/satquery.git
-cd satquery
-
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
+npm run dev        # http://localhost:5173
 ```
-
-The app runs at **http://localhost:5173**
-
-### Available Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run build` | TypeScript check + production build |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run Oxlint |
-
----
-
-## ⚙️ Configuration
-
-### Map Tile Sources
-
-The app uses **free raster tiles** by default (CartoDB Dark) — no API key required.
-
-To use a custom vector tile provider (MapTiler, Stadia, etc.):
 
 ```bash
-# Create a .env file
-echo 'VITE_MAP_STYLE_URL=https://api.maptiler.com/maps/your-style/style.json?key=YOUR_KEY' > .env
+npm run build       # tsc -b && vite build
+npm run lint         # oxlint
+npm run preview     # preview the production build
 ```
 
-Supported tile sources (built-in, no key needed):
-- **CartoDB Dark** (default) — dark basemap matching the UI theme
-- **CartoDB Light** — light alternative
-- **OpenStreetMap** — standard OSM tiles
+### Backend
 
----
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
 
-## 🎨 Design System
-
-### Dark-First Interface
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `bg-primary` | `#0a0b0f` | Page background |
-| `bg-secondary` | `#111318` | Cards, sidebar |
-| `bg-tertiary` | `#181a22` | Input fields, elevated surfaces |
-| `border-default` | `#2a2d38` | Card borders, dividers |
-| `accent` | `#3b82f6` | Primary actions, links |
-| `text-primary` | `#e8eaed` | Headings, important text |
-| `text-secondary` | `#9ca3af` | Body text |
-| `text-muted` | `#6b7280` | Labels, captions |
-
-### Component Library
-
-Reusable UI primitives in `src/components/ui/`:
-
-- **Card** — `Card`, `CardHeader`, `CardContent`, `CardTitle`
-- **Badge** — variants: `default`, `success`, `warning`, `danger`, `info`
-- **StatusBadge** — automatic styling for analysis/project/report statuses
-- **StatCard** — dashboard metric cards with trend indicators
-- **ConfidenceBar** — color-coded confidence score visualization
-
----
-
-## 🧩 Tech Stack
-
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Framework | React | 19.2 |
-| Language | TypeScript | 6.0 |
-| Bundler | Vite | 8.2 |
-| Styling | Tailwind CSS | 4.3 |
-| State | Zustand | 5.0 |
-| Routing | React Router | 7.18 |
-| Maps | MapLibre GL JS | 6.6 |
-| Charts | Recharts | 3.10 |
-| Icons | Lucide React | 1.37 |
-| Utilities | clsx + tailwind-merge | — |
-
----
-
-## 🗺️ Map Integration
-
-### Architecture
-
-```
-MapCanvas (core MapLibre instance)
-  ├── MapControls (zoom, fullscreen)
-  ├── LayerPanel (base layers + overlays)
-  ├── DrawingToolbar (selection tools)
-  ├── SearchBar (Nominatim geocoding)
-  ├── CoordinatesDisplay (cursor lat/lng)
-  └── SelectionOverlay (GeoJSON polygon on map)
+python scripts/init_db.py          # create + seed the database
+uvicorn backend.app.main:app --reload   # http://localhost:8000
 ```
 
-All map components are **isolated and reusable**. The `MapCanvas` exposes the MapLibre instance via a `onMapReady` callback and DOM helpers (`__satqueryMap.flyTo()`).
+```bash
+pytest backend/tests/               # API test suite
+python scripts/eval_vrsbench.py    # VRSBench evaluation harness
+```
 
-### Drawing & Selection
+### Environment variables
 
-1. User selects a draw tool (rectangle, polygon, circle, freehand)
-2. Clicks add points to the selection
-3. Double-click finishes the selection
-4. Selection renders as a dashed blue polygon on the map
-5. Area is calculated via Haversine approximation
-6. Selection info panel updates with km², centre coordinates, point count
+Copy `.env.example` to `.env` and fill in what you need. Everything has a working local default — nothing above is required just to run the app.
 
----
-
-## 📁 Project Structure Highlights
-
-### Types (`src/types/`)
-
-| File | Exports |
-|------|---------|
-| `index.ts` | `SatelliteImage`, `DetectedObject`, `ChangeDetectionResult`, `LandCoverResult`, `Measurement`, `Project`, `Report`, `QueryMessage`, `MapLayer` |
-| `map.ts` | `TileSource`, `CursorCoordinates`, `DrawTool`, `SelectedArea`, `MapCanvasProps` |
-| `query.ts` | `Query`, `QueryIntent`, `IntentType`, `AnalysisTool`, `AnalysisOutput`, `DetectionResult`, `ChangeResult`, `LandCoverResult`, `MeasurementResult`, `QueryResponse` |
-
-### Mock Data (`src/data/mockData.ts`)
-
-Realistic India-centric mock data:
-- 6 satellite images across Mumbai, Delhi, Sundarbans, Punjab, Bangalore, Kerala
-- 7 recent activities with timestamps and statuses
-- Object detection results with 8 categories
-- Change detection with 5 change types
-- Land cover classifications (7 classes)
-- 5 measurement records
-- 6 projects, 4 reports
-- 4 pre-seeded chat messages
-
-### Services (`src/services/`)
-
-| Module | Responsibility |
-|--------|---------------|
-| `queryParser.ts` | Regex-based intent recognition, location extraction from 20+ Indian cities |
-| `analysisTools.ts` | Tool registry: 9 tools mapped to 11 intent types |
-| `analysisRunner.ts` | Mock implementations producing deterministic fake results |
-| `queryEngine.ts` | Pipeline orchestrator: parse → select → run → format |
+| Variable | Used by | Notes |
+|---|---|---|
+| `VITE_API_BASE_URL` | Frontend | Backend origin. Relative (`/api/v1`) when both are on one Vercel domain. |
+| `VITE_MAP_STYLE_URL` | Frontend | Optional custom vector basemap; defaults to a keyless Esri raster basemap. |
+| `DATABASE_URL` | Backend | Defaults to local SQLite; needs a real Postgres URL in production. |
+| `SECRET_KEY` | Backend | JWT signing key — generate your own, never reuse the example value. |
 
 ---
 
-## 🔧 Extending the App
+## Deployment
 
-### Adding a new analysis tool
+The repo ships with a `vercel.json` configured for [Vercel Services](https://vercel.com/docs/services) — one project, two independently-built services on a shared domain:
 
-1. Add a new `IntentType` in `src/types/query.ts`
-2. Add regex patterns in `src/services/queryParser.ts`
-3. Register the tool in `src/services/analysisTools.ts`
-4. Implement the mock runner in `src/services/analysisRunner.ts`
-5. Add response formatting in `src/services/queryEngine.ts`
-
-### Adding a new page
-
-1. Create `src/pages/NewPage.tsx`
-2. Add route in `src/App.tsx`
-3. Add nav item in `src/components/layout/Sidebar.tsx`
-4. Add page title in `src/components/layout/Header.tsx`
-
-### Connecting to real AI
-
-Replace the parser and runner modules while keeping the types:
-
-```typescript
-// services/queryParser.ts — swap for LLM call
-export async function parseQuery(raw: string): Promise<QueryIntent> {
-  const response = await fetch("/api/parse", {
-    method: "POST",
-    body: JSON.stringify({ query: raw }),
-  });
-  return response.json();
+```json
+{
+  "services": {
+    "frontend": { "root": ".", "framework": "vite" },
+    "backend": { "root": "backend", "entrypoint": "app.main:app" }
+  }
 }
 ```
 
----
-
-## 📝 License
-
-This project is built for **Smart India Hackathon 2026**. See your team's license for distribution terms.
+Import the repo on Vercel, attach a Postgres database (Neon, via the Marketplace) as `DATABASE_URL`, set a fresh `SECRET_KEY`, and deploy.
 
 ---
+
+## Roadmap
+
+- [ ] Swap the mock inference engine for a trained vision-language model behind the existing `/api/v1/query` contract
+- [ ] Real Sentinel-1/Sentinel-2 tile ingestion in place of reference imagery
+- [ ] Authenticated multi-user projects with persisted history
+- [ ] Async job queue for long-running analyses
+
+---
+
+## Team
+
+Built for **Smart India Hackathon 2026** by:
+
+| | |
+|---|---|
+| [**Vaibhav-Reddy560**](https://github.com/Vaibhav-Reddy560) | Frontend & design system |
+| [**Lochanchennur**](https://github.com/Lochanchennur) | Backend & MLOps |
+| [**CalmOutlaws**](https://github.com/CalmOutlaws) | Backend & MLOps |
+
+<br />
 
 <div align="center">
+<img src="https://capsule-render.vercel.app/api?type=waving&height=120&color=0:3D7FFF,50:354460,100:0D1220&section=footer" width="100%" alt="" />
 
-**Built with ❤️ for SIH 2026**
-
-*SatQuery — Making satellite intelligence accessible through conversation*
+*SatQuery AI — making satellite intelligence accessible through conversation.*
 
 </div>
