@@ -7,7 +7,7 @@
     },
     "backend": {
       "root": ".",
-      "entrypoint": "backend.app.main:app"
+      "entrypoint": "Dockerfile.vercel"
     }
   },
   "rewrites": [
