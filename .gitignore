@@ -44,3 +44,4 @@ ENV/
 satquery.db
 data/uploads/*
 !data/uploads/.gitkeep
+.vercel
