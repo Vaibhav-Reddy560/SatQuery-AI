@@ -198,15 +198,19 @@ def _build_prompt(
     date: str,
     resolution_m: float,
 ) -> str:
-    """Controlled, grounded prompt: compact instruction + the user's question.
+    """Controlled, grounded prompt: grounding instruction + imagery provenance
+    + the user's question.
 
-    The VLM sees only the image and this text (scene provenance is carried in
-    the structured result, not crammed into the prompt). No statistics or
-    analysis values are injected, so the model cannot parrot numbers — visual
+    The VLM sees only the image and this text. Provenance (location, scene,
+    acquisition date, resolution) is passed through verbatim from the imagery
+    metadata — nothing is invented or hardcoded. No statistics or analysis
+    values are injected, so the model cannot parrot numbers — visual
     observation stays distinct from computed measurement by construction.
     """
     return (
         f"{_SYSTEM_INSTRUCTION} "
+        f"Scene: {scene} (location: {location}, acquired {date}, "
+        f"resolution {resolution_m} m). "
         f"Question: {raw_question}"
     )
 
