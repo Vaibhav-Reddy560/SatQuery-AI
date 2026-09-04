@@ -23,7 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.*
 .env*.local
+!.env.example
 
 # Python & Backend
 __pycache__/
@@ -44,3 +46,4 @@ ENV/
 satquery.db
 data/uploads/*
 !data/uploads/.gitkeep
+.vercel

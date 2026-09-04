@@ -53,6 +53,16 @@ _EXAMPLE_TASKS = (
     "vegetation analysis",
     "measuring area or distance",
 )
+# Below this, even the LLM fallback's own best guess is too uncertain to
+# act on — better to ask the user than confidently run the wrong analysis.
+CLARIFICATION_THRESHOLD = 0.5
+
+_CLARIFICATION_EXAMPLES = (
+    "\"find water bodies near Mumbai\"",
+    "\"what changed here since 2024?\"",
+    "\"classify land cover in Punjab\"",
+    "\"detect ships near this port\"",
+)
 
 
 class QueryOrchestrator:
@@ -87,6 +97,28 @@ class QueryOrchestrator:
                 intent_result = llm_result
             except Exception as exc:
                 trace.append(f"LLM fallback unavailable, keeping regex result: {exc}")
+                # 1c. Clarification safety net: if even the LLM's best guess is
+        # still too uncertain to act on, ask the user instead of silently
+        # picking a tool that's probably wrong.
+        if intent_result.intent == IntentType.unknown and intent_result.confidence < CLARIFICATION_THRESHOLD:
+            trace.append("Confidence too low even after LLM fallback — asking for clarification")
+            latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
+            return AgentRun(
+                query=raw_query,
+                intent=intent_result.intent,
+                intent_confidence=intent_result.confidence,
+                entities=intent_result.entities,
+                reasoning=intent_result.reasoning,
+                plan=None,
+                selected_tool=None,
+                result=None,
+                explanation=(
+                    "I'm not confident I understood what you're asking for. Could you "
+                    "rephrase, or try something like " + ", ".join(_CLARIFICATION_EXAMPLES) + "?"
+                ),
+                trace=trace,
+                latency_ms=latency_ms,
+            )
 
         # 2. Tool selection
         selection: Optional[ToolSelection] = tool_selector.select(intent_result)

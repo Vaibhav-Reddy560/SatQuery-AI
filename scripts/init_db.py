@@ -8,7 +8,6 @@ from backend.app.db.session import engine, SessionLocal, Base
 from backend.app.models.domain import User, Project, DatasetSample
 from backend.app.core.security import get_password_hash
 from backend.app.ml.bigearthnet_loader import bigearthnet_manager
-from backend.app.ml.vrsbench_eval import vrsbench_evaluator
 
 def init_db():
     print("Creating database tables...")
@@ -48,9 +47,11 @@ def init_db():
             db.commit()
 
         # 3. Seed BigEarthNet Dataset Samples
+        # (No VRSBench row: SatQuery doesn't evaluate against VRSBench, so
+        # there's no real sample data for it -- see ml/vrsbench_eval.py.)
         existing_samples = db.query(DatasetSample).count()
         if existing_samples == 0:
-            print("Seeding BigEarthNet & VRSBench Dataset Samples...")
+            print("Seeding BigEarthNet Dataset Samples...")
             ben_samples = bigearthnet_manager.get_sample_patches()
             for s in ben_samples:
                 ds = DatasetSample(
@@ -62,14 +63,6 @@ def init_db():
                     spatial_coords=s["spatial_coords"]
                 )
                 db.add(ds)
-            
-            # VRSBench sample
-            vrs_ds = DatasetSample(
-                dataset_name="VRSBench",
-                sample_key="vrsbench_vqa_sample_01",
-                vrsbench_qa_pairs=vrsbench_evaluator.SAMPLE_TEST_CASES
-            )
-            db.add(vrs_ds)
             db.commit()
 
         print("Database initialization and seed complete!")
