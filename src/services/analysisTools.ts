@@ -65,6 +65,12 @@ export const ANALYSIS_TOOLS: AnalysisTool[] = [
     supportedIntents: ["estimate_crop_health"],
   },
   {
+    id: "visual_analyzer",
+    name: "Visual Analyzer (real VLM)",
+    description: "Describes what is actually visible in a real Sentinel-2 scene via the vision-language model (SmolVLM)",
+    supportedIntents: ["visual_interpretation"],
+  },
+  {
     id: "conversational_assistant",
     name: "AI Assistant (Gemini)",
     description: "Direct conversational answer from the live language model — no analysis tool runs",

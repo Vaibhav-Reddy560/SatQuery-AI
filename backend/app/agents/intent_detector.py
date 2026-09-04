@@ -137,6 +137,12 @@ _RULES: List[_Rule] = [
             r"\b(describe|tell\s+me\s+about)\b.*\b(landscape|terrain|land\s*cover|appearance)\b",
             r"\b(what|how)\b.*\b(look|appear|see)\b.*\b(from\s+above|in\s+this|visible)\b",
             r"\b(describe|interpret|analyse|analyze)\b.*\b(what\s+is\s+visible|the\s+scene|this\s+image)\b",
+            # Narrow "what is visible in the image?" family: requires BOTH the
+            # "what('s) is visible" opener (expanded form "what is visible" or
+            # contracted "what's/whats visible") AND an imagery noun, so
+            # ordinary questions containing "visible" or "image" alone are
+            # not routed to the VLM.
+            r"\b(?:what\s+is|what'?s)\s+visible\b.*\b(image|imagery|scene|satellite|aerial|photo|picture)\b",
         ],
     ),
     _Rule(

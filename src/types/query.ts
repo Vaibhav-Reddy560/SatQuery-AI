@@ -28,6 +28,7 @@ export type IntentType =
   | "detect_vegetation_loss"
   | "detect_deforestation"
   | "estimate_crop_health"
+  | "visual_interpretation"
   | "general_question";
 
 export interface QueryIntent {
@@ -56,6 +57,8 @@ export type AnalysisToolId =
   | "perimeter_measurer"
   | "vegetation_analyser"
   | "crop_health_analyser"
+  /** Real vision-language interpretation of an actual satellite image (SmolVLM). */
+  | "visual_analyzer"
   /** Pure conversational reply from the live language model — no analysis tool ran. */
   | "conversational_assistant";
 
@@ -75,7 +78,8 @@ export type AnalysisResultKind =
   | "land_cover"
   | "vegetation"
   | "water"
-  | "measurement";
+  | "measurement"
+  | "visual";
 
 export interface AnalysisResultBase {
   kind: AnalysisResultKind;
@@ -96,8 +100,9 @@ export interface AnalysisResultBase {
   model?: string;
   /** Algorithm / model version (backend results). */
   modelVersion?: string;
-  /** Honest processing kind: "algorithm" (NDVI/NDWI math) vs "ml" (trained model). */
-  modelKind?: "algorithm" | "ml";
+  /** Honest processing kind: "algorithm" (NDVI/NDWI math), "ml" (trained
+   *  model) or "vlm" (genuine vision-language model on real image pixels). */
+  modelKind?: "algorithm" | "ml" | "vlm";
 }
 
 // ── Detection Result ──────────────────────────────────────
@@ -300,6 +305,39 @@ export interface WaterResult extends AnalysisResultBase {
   overlay?: RasterOverlay;
 }
 
+// ── Visual Result (real vision-language interpretation) ───
+
+/**
+ * Real SmolVLM vision-language interpretation of an actual Sentinel-2 scene
+ * (Phase 2G / 3B). Mirrors the backend `VisualResult` exactly: the answer is
+ * produced by a real multimodal model that received the actual RGB pixels of
+ * the image. It is general visual interpretation only — NOT a calibrated
+ * measurement, which is why no confidence is reported (the backend sends
+ * `confidence: null` and this type omits it). `imageDataUrl` is the
+ * backend-rendered true-colour RGB preview; nothing here fabricates imagery.
+ */
+export interface VisualResult extends Omit<AnalysisResultBase, "confidence"> {
+  kind: "visual";
+  /** The vision-language model's actual answer text. */
+  answer: string;
+  /** The user's question as sent to the model. */
+  question: string;
+  /** Provenance of the imagery the model actually saw. */
+  imagery?: ImageryMetadata;
+  /** Whether structured analysis context was injected into the prompt. */
+  contextSupplied: boolean;
+  contextSource: string;
+  /** Preview dimensions, e.g. "512x512" (backend-provided). */
+  imageSize?: string;
+  /** Backend-measured inference latency, if reported. */
+  inferenceLatencyMs?: number;
+  /** Device the model ran on (e.g. "cpu"). */
+  device?: string;
+  /** True-colour RGB preview PNG data URL (backend-rendered from real bands). */
+  imageDataUrl?: string;
+  summaryText: string;
+}
+
 // ── Union of all results ──────────────────────────────────
 
 export type AnalysisOutput =
@@ -308,7 +346,8 @@ export type AnalysisOutput =
   | LandCoverResult
   | VegetationResult
   | WaterResult
-  | MeasurementResult;
+  | MeasurementResult
+  | VisualResult;
 
 // ── 5. Natural-language Response (engine output) ──────────
 

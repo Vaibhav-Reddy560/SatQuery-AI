@@ -1,62 +1,20 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from backend.app.db.session import get_db
-from backend.app.ml.vlm_engine import vlm_engine
-from backend.app.schemas.ai import IntentType
+from typing import List
+from fastapi import APIRouter
 
 router = APIRouter()
 
-@router.post("/detection")
-def run_object_detection(
-    target_category: Optional[str] = "all",
-    location: str = "Target Area",
-    lng: float = 78.9629,
-    lat: float = 20.5937
-):
-    query_str = f"detect {target_category} in {location}"
-    # This endpoint IS the router for this flow: it resolves the request to
-    # object detection before calling the VLM. Pass the resolved canonical
-    # intent so infer() never re-classifies the query with its own regex.
-    res = vlm_engine.infer(
-        query=query_str,
-        centre=[lng, lat],
-        location_name=location,
-        intent=IntentType.detect_objects,
-    )
-    return res["analysis_payload"]
-
-@router.post("/land-cover")
-def run_land_cover_classification(
-    location: str = "Regional AOI",
-    lng: float = 78.9629,
-    lat: float = 20.5937
-):
-    query_str = f"land cover classification for {location}"
-    res = vlm_engine.infer(
-        query=query_str,
-        centre=[lng, lat],
-        location_name=location,
-        intent=IntentType.land_cover,
-    )
-    return res["analysis_payload"]
-
-@router.post("/change-detection")
-def run_change_detection(
-    before_date: str = "2024-01-01",
-    after_date: str = "2026-01-01",
-    location: str = "AOI Region",
-    lng: float = 78.9629,
-    lat: float = 20.5937
-):
-    query_str = f"change detection comparing {before_date} to {after_date} in {location}"
-    res = vlm_engine.infer(
-        query=query_str,
-        centre=[lng, lat],
-        location_name=location,
-        intent=IntentType.change_detection,
-    )
-    return res["analysis_payload"]
+# NOTE (Phase 3A honesty hardening): the legacy /analysis/detection,
+# /analysis/land-cover and /analysis/change-detection endpoints were REMOVED.
+# They called vlm_engine.infer(), which generated random/fabricated scientific
+# results (random feature positions/counts, random land-cover areas, random
+# change zones) without stamping them as mock. The current architecture runs
+# real analysis through the agent pipeline (POST /api/v1/query/ ->
+# orchestrator -> analysis services), which stamps results with an honest
+# mode/model_kind. Those three endpoints were unused by the frontend, so they
+# were removed rather than kept returning misleading numbers.
+#
+# /analysis/measurement is kept: it computes REAL geodesic area/distance from
+# the supplied coordinates (gis_processor) — no fabricated values.
 
 @router.post("/measurement")
 def run_measurement(
@@ -65,7 +23,7 @@ def run_measurement(
     location: str = "Drawn Polygon"
 ):
     from backend.app.services.gis_processor import calculate_polygon_area_km2, calculate_polyline_distance_km
-    
+
     if measurement_type == "area":
         val = calculate_polygon_area_km2(points)
         unit = "km²"
@@ -84,4 +42,4 @@ def run_measurement(
         "points": points,
         "summary_text": summary,
         "confidence": 0.98
-    }
+    }

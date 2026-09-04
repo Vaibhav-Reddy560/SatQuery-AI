@@ -99,11 +99,32 @@ def stub_vlm(monkeypatch):
         "Does the image appear to contain substantial vegetation?",
         "Describe the visible terrain",
         "Tell me about the landscape",
+        # Natural image-observation wording (narrow "what is visible" family).
+        "What is visible in the image?",
+        "What can you see in this image?",
+        "What do you see in this image?",
+        "What's visible in the satellite photo?",
     ],
 )
 def test_visual_queries_detect_visual_intent(query: str):
     result = intent_detector.classify(query)
     assert result.intent == IntentType.visual_interpretation
+
+
+def test_visible_image_phrases_do_not_route_ordinary_questions_to_vlm():
+    """The narrow 'what is visible in the image' rule must NOT catch ordinary
+    questions that merely mention 'visible', 'see' or 'image'."""
+    cases = [
+        "What is visible from space?",
+        "Is the building visible in this image?",
+        "Can you see the problem?",
+        "What does visible mean?",
+        "How visible is the water from above?",
+        "What is visible in this region?",
+    ]
+    for query in cases:
+        result = intent_detector.classify(query)
+        assert result.intent != IntentType.visual_interpretation, query
 
 
 def test_visual_query_selects_visual_tool():
