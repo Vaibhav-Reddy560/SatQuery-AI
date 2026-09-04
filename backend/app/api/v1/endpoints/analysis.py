@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from backend.app.db.session import get_db
 from backend.app.ml.vlm_engine import vlm_engine
+from backend.app.schemas.ai import IntentType
 
 router = APIRouter()
 
@@ -14,7 +15,15 @@ def run_object_detection(
     lat: float = 20.5937
 ):
     query_str = f"detect {target_category} in {location}"
-    res = vlm_engine.infer(query=query_str, centre=[lng, lat], location_name=location)
+    # This endpoint IS the router for this flow: it resolves the request to
+    # object detection before calling the VLM. Pass the resolved canonical
+    # intent so infer() never re-classifies the query with its own regex.
+    res = vlm_engine.infer(
+        query=query_str,
+        centre=[lng, lat],
+        location_name=location,
+        intent=IntentType.detect_objects,
+    )
     return res["analysis_payload"]
 
 @router.post("/land-cover")
@@ -24,7 +33,12 @@ def run_land_cover_classification(
     lat: float = 20.5937
 ):
     query_str = f"land cover classification for {location}"
-    res = vlm_engine.infer(query=query_str, centre=[lng, lat], location_name=location)
+    res = vlm_engine.infer(
+        query=query_str,
+        centre=[lng, lat],
+        location_name=location,
+        intent=IntentType.land_cover,
+    )
     return res["analysis_payload"]
 
 @router.post("/change-detection")
@@ -36,7 +50,12 @@ def run_change_detection(
     lat: float = 20.5937
 ):
     query_str = f"change detection comparing {before_date} to {after_date} in {location}"
-    res = vlm_engine.infer(query=query_str, centre=[lng, lat], location_name=location)
+    res = vlm_engine.infer(
+        query=query_str,
+        centre=[lng, lat],
+        location_name=location,
+        intent=IntentType.change_detection,
+    )
     return res["analysis_payload"]
 
 @router.post("/measurement")

@@ -1,7 +1,8 @@
 import re
 import random
 import time
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Optional, Tuple
+from backend.app.schemas.ai import IntentType
 from backend.app.services.gis_processor import compute_spectral_indices, process_sar_vv_vh_ratio
 
 class SatQueryVLMEngine:
@@ -22,6 +23,26 @@ class SatQueryVLMEngine:
         (r"\b(change|compare|difference|before|after|temporal)\b", "change_detection", "Bi-temporal Change Detection"),
         (r"\b(measure|area|distance|perimeter|length|size|km2|square km)\b", "measurement", "Geospatial Measurement"),
     ]
+
+    # Canonical router/orchestrator intent (backend/app/schemas/ai.py) -> this
+    # engine's internal intent type. Pure name translation: the router
+    # (backend/app/agents/intent_detector.py) is the source of truth for
+    # intent; this table never classifies query text and adds no new
+    # classification logic. ``detect_objects`` is the router's generic
+    # object-detection intent, which this engine serves through its default
+    # urban/building detection branch.
+    ROUTER_INTENT_TO_INTERNAL: Dict[IntentType, str] = {
+        IntentType.detect_objects: "building_detection",
+        IntentType.find_water: "water_detection",
+        IntentType.land_cover: "land_cover",
+        IntentType.change_detection: "change_detection",
+        IntentType.vegetation_analysis: "deforestation_detection",
+        IntentType.measure_area: "measurement",
+        IntentType.measure_distance: "measurement",
+        IntentType.visual_interpretation: "general_analysis",
+        IntentType.general_satellite_question: "general_analysis",
+        IntentType.unknown: "general_analysis",
+    }
 
     CORINE_LAND_COVER_CLASSES = [
         {"name": "Urban Fabric & Infrastructure", "code": "111", "color": "#ef4444"},
@@ -66,11 +87,50 @@ class SatQueryVLMEngine:
             "spectral_indices": ["NDVI", "NDWI", "NDBI"]
         }
 
-    def infer(self, query: str, centre: List[float] = None, location_name: str = None) -> Dict[str, Any]:
+    def _intent_info_from_canonical(self, intent: IntentType) -> Dict[str, Any]:
+        """Build the engine's intent dict from a router-resolved canonical intent.
+
+        Pure name translation (canonical ``IntentType`` -> this engine's
+        internal intent string). No regex over the query text: the router's
+        decision is used verbatim — this engine never re-classifies when the
+        router already resolved the intent.
+        """
+        internal_type = self.ROUTER_INTENT_TO_INTERNAL.get(intent, "general_analysis")
+        target_name = "Remote Sensing Features"
+        for _pattern, itype, name in self.INTENT_PATTERNS:
+            if itype == internal_type:
+                target_name = name
+                break
+        return {
+            "type": internal_type,
+            "target_name": target_name,
+            "location": "Selected Area of Interest",
+            "confidence": 0.94,
+            "spectral_indices": ["NDVI", "NDWI", "NDBI"],
+        }
+
+    def infer(
+        self,
+        query: str,
+        centre: List[float] = None,
+        location_name: str = None,
+        intent: Optional[IntentType] = None,
+    ) -> Dict[str, Any]:
         start_time = time.time()
         centre = centre or [78.9629, 20.5937]
-        intent = self.parse_query_intent(query)
-        location = location_name or intent["location"]
+
+        # The router/orchestrator (backend/app/agents/intent_detector.py) is
+        # the source of truth for intent. When it has already resolved the
+        # canonical intent, use it directly and NEVER re-run this engine's own
+        # regex classifier — that second classification can disagree with the
+        # router (e.g. plural forms like "buildings") and silently override
+        # the authoritative decision.
+        if intent is not None:
+            intent_info = self._intent_info_from_canonical(intent)
+        else:
+            intent_info = self.parse_query_intent(query)
+
+        location = location_name or intent_info["location"]
         
         # Simulate multispectral & SAR preprocessing
         spectral = compute_spectral_indices(nir=0.45, red=0.12, green=0.22, swir=0.28)
@@ -82,7 +142,7 @@ class SatQueryVLMEngine:
         attachments = []
         suggested_actions = []
 
-        if intent["type"] == "land_cover":
+        if intent_info["type"] == "land_cover":
             kind = "land_cover"
             total_area = round(random.uniform(150.0, 500.0), 1)
             # Allocate percentage breakdown
@@ -119,7 +179,7 @@ class SatQueryVLMEngine:
             ]
             suggested_actions = ["Export Land Cover GeoJSON", "Compare with historical imagery", "Generate PDF Summary Report"]
 
-        elif intent["type"] == "change_detection":
+        elif intent_info["type"] == "change_detection":
             kind = "change"
             total_changed = round(random.uniform(5.2, 28.4), 2)
             changes = [
@@ -161,7 +221,7 @@ class SatQueryVLMEngine:
             ]
             suggested_actions = ["Highlight change zones on map", "Export Change Report", "Calculate NDWI moisture delta"]
 
-        elif intent["type"] == "measurement":
+        elif intent_info["type"] == "measurement":
             kind = "measurement"
             val = round(random.uniform(12.5, 45.8), 2)
             payload = {
@@ -204,7 +264,7 @@ class SatQueryVLMEngine:
                 "crop_health": ("Crop Field", "Agriculture"),
                 "general_analysis": ("Satellite Feature", "General")
             }
-            lbl, cat = feature_labels.get(intent["type"], ("Satellite Feature", "General"))
+            lbl, cat = feature_labels.get(intent_info["type"], ("Satellite Feature", "General"))
             
             features = []
             num_feats = random.randint(4, 9)
@@ -253,12 +313,12 @@ class SatQueryVLMEngine:
 
         return {
             "intent": {
-                "type": intent["type"],
+                "type": intent_info["type"],
                 "location": location,
                 "centre": centre,
-                "confidence": intent["confidence"],
-                "detected_target": intent["target_name"],
-                "spectral_indices": intent["spectral_indices"]
+                "confidence": intent_info["confidence"],
+                "detected_target": intent_info["target_name"],
+                "spectral_indices": intent_info["spectral_indices"]
             },
             "text_response": text_response,
             "attachments": attachments,
