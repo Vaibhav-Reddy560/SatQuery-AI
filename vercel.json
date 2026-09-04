@@ -6,8 +6,8 @@
       "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
     },
     "backend": {
-      "root": "backend",
-      "entrypoint": "app.main:app"
+      "root": ".",
+      "entrypoint": "backend.app.main:app"
     }
   },
   "rewrites": [
