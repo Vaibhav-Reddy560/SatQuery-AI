@@ -73,6 +73,8 @@ class SmolVLMBackend:
         self._processor = None
         self._model = None
         self._load_error: Optional[str] = None
+        self._load_count = 0
+        self._last_load_latency_ms: Optional[float] = None
         self._max_new_tokens = 200
         # Deterministic-ish generation: low temperature keeps consecutive
         # runs of the same query closely aligned (helpful for tests/demos)
@@ -82,9 +84,15 @@ class SmolVLMBackend:
     # ── Loading (lazy; heavy imports deferred) ────────────────────────────
 
     def load(self) -> None:
-        """Import transformers/torch and load processor + model weights."""
+        """Import transformers/torch and load processor + model weights.
+
+        Idempotent and cached: once the processor/model are in memory this is
+        a no-op, so repeated requests never re-read the ~1 GB weights from
+        disk. Loading time is recorded for honest latency provenance.
+        """
         if self._model is not None:
             return
+        started = time.perf_counter()
         try:
             import torch  # noqa: F401  (presence check)
             from transformers import AutoProcessor, AutoModelForImageTextToText
@@ -111,12 +119,24 @@ class SmolVLMBackend:
                 f"to the Hugging Face cache."
             )
             raise RuntimeError(self._load_error) from exc
+        self._load_count += 1
+        self._last_load_latency_ms = round((time.perf_counter() - started) * 1000.0, 1)
 
     def is_loaded(self) -> bool:
         return self._model is not None
 
     def load_error(self) -> Optional[str]:
         return self._load_error
+
+    @property
+    def load_count(self) -> int:
+        """How many times this process actually loaded the weights from disk."""
+        return self._load_count
+
+    @property
+    def last_load_latency_ms(self) -> Optional[float]:
+        """Wall time of the most recent weight load (None if never loaded)."""
+        return self._last_load_latency_ms
 
     # ── Inference ─────────────────────────────────────────────────────────
 
@@ -131,14 +151,9 @@ class SmolVLMBackend:
         """
         if self._model is None:
             self.load()
-
-        from transformers import AutoProcessor, AutoModelForImageTextToText
-
-        if self._processor is None:
-            self._processor = AutoProcessor.from_pretrained(self.model_id)
-        if self._model is None:
-            self._model = AutoModelForImageTextToText.from_pretrained(self.model_id)
-            self._model.eval()
+        # load() is idempotent; if it raised, its error was already surfaced.
+        if self._model is None or self._processor is None:
+            raise RuntimeError(self._load_error or "Vision-language model is not loaded.")
 
         if image.mode != "RGB":
             image = image.convert("RGB")

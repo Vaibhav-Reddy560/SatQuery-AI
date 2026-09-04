@@ -409,6 +409,12 @@ class VisualResult(AnalysisResultBase):
     context_source: str = "none"
     image_size: Optional[str] = None
     inference_latency_ms: Optional[float] = None
+    # Wall time spent loading the model weights into memory for THIS request
+    # (None when the model was already loaded — see ``model_reused``).
+    model_load_latency_ms: Optional[float] = None
+    # True when the model weights were already in memory (cached from an
+    # earlier request in this process) instead of being re-read from disk.
+    model_reused: bool = False
     device: Optional[str] = None
     # Optional true-colour RGB preview of the exact pixels the model saw
     # (data URL), so the chat UI can display the analysed scene.

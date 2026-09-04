@@ -36,6 +36,11 @@ export function VisualResultPanel({ result }: { result: VisualResult }) {
       ? (result.inferenceLatencyMs / 1000).toFixed(1)
       : null;
 
+  const loadSeconds =
+    result.modelLoadLatencyMs !== undefined
+      ? (result.modelLoadLatencyMs / 1000).toFixed(1)
+      : null;
+
   const sourceLabel = imagery
     ? /earth search|stac/i.test(imagery.provider)
       ? "Live Sentinel-2 · Earth Search STAC"
@@ -142,6 +147,10 @@ export function VisualResultPanel({ result }: { result: VisualResult }) {
             </div>
             {modelLabel && <MetaRow label="Model" value={modelLabel} />}
             {latencySeconds && <MetaRow label="Inference" value={`${latencySeconds} s`} />}
+            {loadSeconds && <MetaRow label="Model load" value={`${loadSeconds} s (first use)`} />}
+            {result.modelReused === true && (
+              <MetaRow label="Model load" value="cached — no reload" />
+            )}
             {result.device && <MetaRow label="Device" value={result.device} />}
             {result.imageSize && <MetaRow label="Image size" value={result.imageSize} />}
           </dl>

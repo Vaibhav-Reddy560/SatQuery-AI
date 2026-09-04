@@ -120,7 +120,15 @@ class VisualAnalysisService(AbstractAnalysisService):
         )
 
         try:
+            # Lazy, cached load: only the first request in a process pays the
+            # weight-loading cost; subsequent requests reuse the singleton.
+            loads_before = int(getattr(smol_vlm_backend, "load_count", 0))
             smol_vlm_backend.load()
+            loads_after = int(getattr(smol_vlm_backend, "load_count", 0))
+            model_reused = loads_before > 0 and loads_after == loads_before
+            model_load_latency_ms = (
+                None if model_reused else getattr(smol_vlm_backend, "last_load_latency_ms", None)
+            )
             answer, latency_ms = smol_vlm_backend.caption(image, prompt)
         except RuntimeError as exc:
             raise AnalysisServiceError(
@@ -155,6 +163,8 @@ class VisualAnalysisService(AbstractAnalysisService):
             imagery=bands.metadata,
             image_size=image_size,
             latency_ms=latency_ms,
+            model_load_latency_ms=model_load_latency_ms,
+            model_reused=model_reused,
         )
 
         # Centre reflects the imagery actually analysed. When the client sent
@@ -184,6 +194,8 @@ class VisualAnalysisService(AbstractAnalysisService):
             context_source="none",
             image_size=image_size,
             inference_latency_ms=latency_ms,
+            model_load_latency_ms=model_load_latency_ms,
+            model_reused=model_reused,
             device=smol_vlm_backend.device,
             image_data_url=_encode_image_data_url(image),
         )
@@ -315,15 +327,22 @@ def _summary_text(
     imagery,
     image_size: str,
     latency_ms: float,
+    model_load_latency_ms: Optional[float] = None,
+    model_reused: bool = False,
 ) -> str:
     date = imagery.acquisition_date or "unknown"
     scene = imagery.scene_id or "sample scene"
+    load_note = ""
+    if model_load_latency_ms is not None:
+        load_note = f" Model weights were loaded from disk for this first request ({model_load_latency_ms / 1000.0:.1f}s); later requests reuse the cached model."
+    elif model_reused:
+        load_note = " Model weights were already loaded (cached) — no reload for this request."
     return (
         f"Visual interpretation of the real Sentinel-2 scene over {location} "
         f"(scene {scene}, acquired {date}, {image_size} px true-colour RGB) "
         f"using {MODEL_NAME} v{MODEL_VERSION} ({MODEL_LICENSE}). "
         f"The model received the actual image pixels and answered: \"{answer}\" "
-        f"Inference took {latency_ms / 1000.0:.1f}s on CPU. "
+        f"Inference took {latency_ms / 1000.0:.1f}s on CPU.{load_note} "
         f"Note: this is general visual interpretation by a compact vision-language "
         f"model — it is not a calibrated measurement; for quantitative answers "
         f"(vegetation %, water area, change) use the dedicated analysis tools."

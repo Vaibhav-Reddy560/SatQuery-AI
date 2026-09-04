@@ -15,6 +15,7 @@ from the query text or supplied by the frontend wins.
 from typing import Dict, Optional
 
 from backend.app.agents.base import IntentClassifier  # noqa: F401
+from backend.app.core.gazetteer import lookup as gazetteer_lookup
 from backend.app.schemas.ai import (
     AgentContext,
     AnalysisRequest,
@@ -33,6 +34,7 @@ _DEFAULT_LOCATION_NAMES = {
     "target area",
     "aoi region",
     "regional aoi",
+    "selected area",
 }
 
 
@@ -59,9 +61,16 @@ class QueryPlanner:
             entity_location = entities.get("location")
             location = str(entity_location) if entity_location else None
 
-        # Centre: explicit context wins, then entity location is not mapped
-        # server-side (no gazetteer yet), so we fall back to the default.
-        centre = [float(v) for v in ctx.centre] if ctx.centre else DEFAULT_CENTRE
+        # Centre: an explicit context centre (map position / drawn AOI) always
+        # wins. Otherwise resolve a text location deterministically through the
+        # local gazetteer so an explicit place never silently analyses the
+        # default scene under the wrong label. Locations unknown to the
+        # gazetteer keep the default centre; the imagery layer refuses them
+        # (NoAoiProvided) instead of analysing the wrong scene.
+        centre = [float(v) for v in ctx.centre] if ctx.centre else None
+        if centre is None:
+            resolved = gazetteer_lookup(location)
+            centre = [float(v) for v in resolved] if resolved else DEFAULT_CENTRE
 
         # Date range: entity years (e.g. "between 2024 and 2026") or the
         # context window supplied by the API.

@@ -1,0 +1,27 @@
+{
+  "source": "Earth Search STAC (https://earth-search.aws.element84.com) \u2014 sentinel-2-l2a",
+  "authentication": "none",
+  "license": "Copernicus Programme terms \u2014 free to use (https://dataspace.copernicus.eu/terms-and-conditions)",
+  "scene_id": "S2C_42QZG_20260506_0_L2A",
+  "region": "Mumbai, Maharashtra, India",
+  "acquisition_datetime": "2026-05-06T05:53:42.643000Z",
+  "cloud_cover_percent": 12.527503,
+  "epsg": 32642,
+  "crs": "EPSG:32642",
+  "pixel_size_m": 10,
+  "bands": [
+    "B02 (BLUE 10m)",
+    "B03 (GREEN 10m)",
+    "B04 (RED 10m)",
+    "B08 (NIR 10m)",
+    "SCL (cloud mask)"
+  ],
+  "scale_factor": 0.0001,
+  "center_lat": 19.076,
+  "center_lng": 72.8777,
+  "pixels": 224,
+  "sample_ndvi_mean": 0.19,
+  "sample_ndwi_mean": -0.2472,
+  "regenerate_command": "python scripts/fetch_indian_scene_samples.py --name mumbai",
+  "provider_note": "Free public STAC; anonymous reads; no SLA; may be rate-limited."
+}

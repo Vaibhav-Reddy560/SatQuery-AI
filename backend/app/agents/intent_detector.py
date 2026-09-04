@@ -67,8 +67,52 @@ class _Rule:
         self.patterns = [re.compile(p, re.IGNORECASE) for p in patterns]
 
 
+def _education_patterns() -> List[str]:
+    """
+    Patterns for conceptual/definition questions ("What is NDVI?", "Explain
+    what Sentinel-2 is."). These MUST NOT capture analysis asks ("What is the
+    NDVI of this scene?"), which keep routing to their analysis tools, nor
+    "describe this image" asks, which are visual intents.
+    """
+    concepts = [
+        "ndvi", "ndwi", "sentinel[- ]?2", "landsat", "remote\\s+sensing",
+        "sar", "satellite\\s+imagery", "spectral\\s+index(?:es)?",
+        "land\\s*cover", "gis",
+    ]
+    patterns: List[str] = []
+    # 1) Sentence-final "what is X?" / "what are X?" (optionally with an
+    #    article). Analysis asks have a tail ("...of this scene?"), so the
+    #    end anchor keeps them out.
+    for c in concepts:
+        patterns.append(
+            r"\b(?:what|what'?s)\s+(?:is|are)\s+(?:an?\s+|the\s+)?" + c + r"\s*[?.!]?$"
+        )
+    # 2) "what does X mean/stand for", "X is used for"
+    for c in concepts:
+        patterns.append(r"\bwhat\s+does\s+" + c + r"\s+(?:mean|stand\s+for)\b")
+        patterns.append(r"\bwhat\s+is\s+(?:an?\s+|the\s+)+" + c + r"\s+used\s+for\b")
+        patterns.append(r"\b" + c + r"\s+(?:means?|stands\s+for)\b")
+    # 3) "define / explain / explain what ... is" — but never when the query
+    #    asks about a concrete image/scene in view (visual intent) or asks
+    #    "what is visible".
+    not_visual = (
+        r"(?s)^(?!.*\bvisible\b)"
+        r"(?!.*\b(?:this|the|that)\s+(?:satellite\s+)?"
+        r"(?:image|scene|imagery|picture|photo|region|area)\b).*"
+    )
+    for c in concepts:
+        patterns.append(
+            not_visual + r"\b(?:define|explain)\b[^.!?]{0,80}\b" + c + r"\b"
+        )
+    return patterns
+
+
 # Order matters: earlier rules win when several could match.
 _RULES: List[_Rule] = [
+    _Rule(
+        IntentType.general_satellite_question, "education_concepts", 0.88,
+        _education_patterns(),
+    ),
     _Rule(
         IntentType.change_detection, "change_detection", 0.92,
         [
@@ -81,9 +125,14 @@ _RULES: List[_Rule] = [
     _Rule(
         IntentType.find_water, "find_water", 0.93,
         [
-            r"\b(find|detect|locate|identify|map|show|count|track)\b.*\b(water\s*bodies?|waterbody|waterbodies|lake|lakes|river|rivers|pond|ponds|reservoir|reservoirs|canal|canals|wetland|wetlands)\b",
+            r"\b(find|detect|locate|identify|map|show|count|track|search)\b.*\b(water\s*bodies?|waterbody|waterbodies|lake|lakes|river|rivers|pond|ponds|reservoir|reservoirs|canal|canals|wetland|wetlands)\b",
             r"\b(flood|inundat|submerg)\b",
             r"\bwater\s*bod(?:y|ies)\b",
+            # Bare "water" after an action word ("find water around Delhi")
+            # or a place-scoped "water ..." form is a water-detection ask.
+            r"\b(find|detect|locate|identify|map|show|count|track|search)\b[^.!?]{0,40}\bwater\b",
+            r"\b(how\s+much|how\s+many)\s+water\b",
+            r"\bwater\s+(?:around|near|in|at|over|across|within)\b",
         ],
     ),
     _Rule(

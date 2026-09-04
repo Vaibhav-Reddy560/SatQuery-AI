@@ -19,6 +19,7 @@ the deterministic demo backends (object/land-cover/change/measurement) and
 Sentinel-2 imagery). The trace reflects whichever mode actually ran.
 """
 
+import re
 import time
 from typing import List, Optional
 
@@ -168,13 +169,74 @@ class QueryOrchestrator:
         )
 
     @staticmethod
-    def _non_analysis_explanation(raw_query: str, intent: IntentType) -> str:
+    def _educational_answer(raw_query: str) -> Optional[str]:
+        """
+        Static, honest explainer for conceptual questions ("What is NDVI?",
+        "Explain what Sentinel-2 is."). Returns None when the query is not a
+        known concept so the caller keeps its generic reply. Facts here are
+        real textbook definitions — no analysis is run and no numbers are
+        invented.
+        """
+        text = raw_query.lower()
+        if re.search(r"\bndvi\b", text):
+            return (
+                "NDVI (Normalized Difference Vegetation Index) is a radiometric "
+                "index measuring vegetation vigour from satellite reflectance: "
+                "NDVI = (NIR − RED) / (NIR + RED), where RED is Sentinel-2 B04 and "
+                "NIR is B08. Values range from −1 to +1; dense healthy vegetation "
+                "is strongly positive (~0.6–0.9), bare soil/urban near zero, and "
+                "water negative. SatQuery computes NDVI from real Sentinel-2 L2A "
+                "reflectance — say \"what is the NDVI of this scene?\" to run it."
+            )
+        if re.search(r"\bndwi\b", text):
+            return (
+                "NDWI (Normalized Difference Water Index) highlights open water: "
+                "NDWI = (GREEN − NIR) / (GREEN + NIR), using Sentinel-2 B03 "
+                "(GREEN) and B08 (NIR). Water surfaces are strongly positive; "
+                "soil and dry vegetation are negative. SatQuery classifies "
+                "pixels with NDWI >= 0 as water on real Sentinel-2 imagery — "
+                "say \"find water around Delhi\" to run it."
+            )
+        if re.search(r"\bsentinel[- ]?2\b", text) or re.search(r"\bsentinel\b", text):
+            return (
+                "Sentinel-2 is a pair of Earth-observation satellites (2A/2B/2C) "
+                "run by the European Space Agency under Copernicus. Its MSI "
+                "instrument images the land in 13 spectral bands at 10–60 m "
+                "resolution every ~5 days; the L2A product used here provides "
+                "atmospherically corrected surface reflectance (free, open "
+                "data). SatQuery analyses real Sentinel-2 scenes — say \"what "
+                "is the NDVI of this scene?\" or \"find water around Delhi\"."
+            )
+        if re.search(r"\bremote\s+sensing\b|\bsatellite\s+imagery\b|\bsatellite\b", text):
+            return (
+                "Remote sensing is measuring the Earth's surface from space "
+                "using sensors on satellites — optical (reflected sunlight, e.g. "
+                "Sentinel-2), SAR (radar, e.g. Sentinel-1) or thermal. SatQuery "
+                "uses real Sentinel-2 reflectance to compute vegetation (NDVI), "
+                "water (NDWI), land cover and change. Ask for a concrete "
+                "analysis such as \"what is the NDVI of this scene?\"."
+            )
+        if re.search(r"\bland\s*cover\b", text):
+            return (
+                "Land cover is the physical surface type observed from space — "
+                "water, vegetation/cropland, built-up, bare soil and so on. "
+                "SatQuery classifies land cover from real Sentinel-2 reflectance "
+                "with a trained RandomForest model — say \"classify the land "
+                "cover here\" to run it."
+            )
+        return None
+
+    @classmethod
+    def _non_analysis_explanation(cls, raw_query: str, intent: IntentType) -> str:
         if intent == IntentType.unknown:
             return (
                 "I couldn't map that to a satellite-analysis task. I can help with "
                 + ", ".join(_EXAMPLE_TASKS)
                 + ". Try rephrasing, e.g. \"find water bodies near Mumbai\"."
             )
+        answer = cls._educational_answer(raw_query)
+        if answer:
+            return answer
         return (
             "I understood your question about the selected area. For a concrete "
             "analysis, ask me to do one of: "

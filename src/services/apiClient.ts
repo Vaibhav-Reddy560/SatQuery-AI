@@ -188,6 +188,8 @@ interface BackendPayload {
   context_source?: string | null;
   image_size?: string | null;
   inference_latency_ms?: number | null;
+  model_load_latency_ms?: number | null;
+  model_reused?: boolean | null;
   device?: string | null;
   image_data_url?: string | null;
 }
@@ -577,6 +579,8 @@ function mapResult(
         contextSource: str(payload.context_source ?? null, "none"),
         imageSize: payload.image_size ?? undefined,
         inferenceLatencyMs: payload.inference_latency_ms ?? undefined,
+        modelLoadLatencyMs: payload.model_load_latency_ms ?? undefined,
+        modelReused: payload.model_reused === true,
         device: payload.device ?? undefined,
         imageDataUrl: payload.image_data_url ?? undefined,
       };

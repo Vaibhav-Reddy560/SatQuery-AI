@@ -62,6 +62,25 @@ _SCL_MASKED = {0, 1, 3, 8, 9, 10, 11}
 
 SAMPLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sample_ndvi")
 
+# Additional REAL bundled Indian scenes (see scripts/fetch_indian_scene_samples.py).
+# Each scene directory stores its OWN projected CRS/grid (Sentinel-2 tiles in
+# different UTM zones) — never re-projected onto one shared grid.
+_SCENES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "scenes")
+SAMPLE_DELHI_DIR = os.path.join(_SCENES_DIR, "delhi")
+SAMPLE_JAISALMER_DIR = os.path.join(_SCENES_DIR, "jaisalmer")
+SAMPLE_MUMBAI_DIR = os.path.join(_SCENES_DIR, "mumbai")
+
+# Ordered scene registry for the offline "sample" provider. The default scene
+# (Harike wetland, sample_ndvi) is the fallback when the request carries no
+# AOI; explicit AOIs are matched to whichever bundled scene covers them.
+# keys = canonical aliases used by gazetteer lookups / tests.
+SAMPLE_SCENE_DIRS = [
+    SAMPLE_DIR,
+    SAMPLE_DELHI_DIR,
+    SAMPLE_JAISALMER_DIR,
+    SAMPLE_MUMBAI_DIR,
+]
+
 # Bi-temporal change-detection sample: two REAL Sentinel-2 observations of
 # the same Harike-wetland AOI at different dates, stored on the identical
 # 10 m UTM grid so the pair is pixel-aligned by construction.
@@ -174,6 +193,16 @@ class ImageryProvider(Protocol):
 
 # ── AOI helpers ────────────────────────────────────────────────────────────
 
+# Location labels that mean "no explicit place was given" (mirrors the
+# planner sentinels). A request that carries one of these and no AOI geometry
+# is the deterministic sample/default case.
+_NO_AOI_LOCATION_NAMES = {
+    "", "selected region", "selected aoi", "target area",
+    "selected area of interest", "aoi region", "regional aoi",
+    "selected area", "selected region of interest",
+}
+
+
 def _is_default_centre(centre: Optional[List[float]]) -> bool:
     if not centre:
         return True
@@ -195,6 +224,20 @@ def requested_aoi(request: AnalysisRequest) -> Optional[Tuple[float, float, floa
     has_explicit_centre = request.centre is not None and not _is_default_centre(request.centre)
 
     if not has_geometry and not has_explicit_centre:
+        # No AOI from geometry or centre. A query that nevertheless names an
+        # explicit place (e.g. "NDVI near Mysuru" from a client that could not
+        # geocode it) must NOT silently fall back to the default sample scene
+        # under a wrong place label: refuse honestly.
+        location = (request.location or "").strip().lower()
+        if location and location not in _NO_AOI_LOCATION_NAMES:
+            from backend.app.core.gazetteer import lookup
+
+            if lookup(location) is None:
+                raise NoAoiProvided(
+                    f"'{request.location}' could not be resolved to coordinates. "
+                    f"Select an AOI on the map or mention a known place "
+                    f"(e.g. 'NDVI near Ludhiana')."
+                )
         return None
 
     if isinstance(geometry, PolygonGeometry):
@@ -725,6 +768,79 @@ class Sentinel2EarthSearchProvider:
             raise ImageryUnavailable(f"Failed to read COG {href}: {exc}") from exc
 
 
+# ── Multi-scene sample router (default offline provider) ─────────────────
+#
+# The offline "sample" provider can now serve SEVERAL real bundled scenes
+# (Harike default, Delhi, Jaisalmer, Mumbai — each in its own CRS). The
+# router picks the scene whose coverage intersects the requested AOI and
+# delegates to a single-scene ``SampleSentinel2Provider`` for that directory.
+
+class SampleSceneRouter:
+    """
+    Offline imagery provider over all bundled sample scenes.
+
+    * No AOI (implicit default)      -> the default Harike scene (deterministic).
+    * Explicit AOI                   -> the bundled scene covering it (Delhi /
+      Jaisalmer / Mumbai / Harike), else an honest ``OutsideSampleAOI``.
+    * ``fetch_pair`` (change)        -> only the bundled bi-temporal Harike
+      pair exists; other scenes have a single date and raise an honest error.
+    """
+
+    provider_name = "sample"
+
+    def __init__(self, scene_dirs=None) -> None:
+        self._dirs = list(scene_dirs or SAMPLE_SCENE_DIRS)
+        self._providers: dict = {}
+        self._coverage: Optional[dict] = None
+
+    def _provider_for(self, directory: str) -> SampleSentinel2Provider:
+        if directory not in self._providers:
+            self._providers[directory] = SampleSentinel2Provider(directory)
+        return self._providers[directory]
+
+    def _coverages(self) -> dict:
+        """directory -> lng/lat bounds (lazy; one rasterio open per scene)."""
+        if self._coverage is None:
+            self._coverage = {
+                d: self._provider_for(d).sample_bounds() for d in self._dirs
+            }
+        return self._coverage
+
+    def _scene_for(self, aoi) -> SampleSentinel2Provider:
+        for directory, bounds in self._coverages().items():
+            if intersection(aoi, bounds) is not None:
+                return self._provider_for(directory)
+        names = ", ".join(
+            os.path.basename(d) for d in self._dirs
+        )
+        raise OutsideSampleAOI(
+            f"The requested AOI does not overlap any bundled sample scene "
+            f"(available offline scenes: {names}). Enable the live provider "
+            f"(SATQUERY_IMAGERY_PROVIDER=sentinel2) or pick an AOI inside one "
+            f"of the bundled scenes."
+        )
+
+    def fetch(self, request: AnalysisRequest) -> BandData:
+        aoi = requested_aoi(request)
+        if aoi is None:
+            # No explicit AOI -> deterministic default (Harike) sample scene.
+            return self._provider_for(self._dirs[0]).fetch(request)
+        return self._scene_for(aoi).fetch(request)
+
+    def fetch_pair(self, request: AnalysisRequest) -> TemporalPair:
+        aoi = requested_aoi(request)
+        default_dir = self._dirs[0]
+        if aoi is None or intersection(aoi, self._coverages()[default_dir]) is not None:
+            # Default bi-temporal Harike pair (also the legacy whole-scene path).
+            return self._provider_for(default_dir).fetch_pair(request)
+        raise OutsideSampleAOI(
+            "Bi-temporal change detection is only bundled for the default "
+            "Harike wetland sample pair. For change detection over Delhi, "
+            "Jaisalmer or Mumbai enable the live provider "
+            "(SATQUERY_IMAGERY_PROVIDER=sentinel2) so two real dates can be fetched."
+        )
+
+
 # ── Provider factory (cached) ──────────────────────────────────────────────
 
 _PROVIDER_CACHE: dict = {}
@@ -735,7 +851,7 @@ def get_imagery_provider(name: Optional[str] = None) -> ImageryProvider:
     provider_name = (name or settings.IMAGERY_PROVIDER or "sample").strip().lower()
     if provider_name not in _PROVIDER_CACHE:
         if provider_name == "sample":
-            _PROVIDER_CACHE[provider_name] = SampleSentinel2Provider()
+            _PROVIDER_CACHE[provider_name] = SampleSceneRouter()
         elif provider_name == "sentinel2":
             _PROVIDER_CACHE[provider_name] = Sentinel2EarthSearchProvider(
                 lookback_days=settings.SENTINEL2_LOOKBACK_DAYS,

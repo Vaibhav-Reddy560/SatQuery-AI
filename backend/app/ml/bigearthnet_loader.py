@@ -14,8 +14,16 @@ BIGEARTHNET_19_CLASSES = [
 
 class BigEarthNetDatasetManager:
     """
-    BigEarthNet MLOps dataset loader for co-registered Sentinel-1 SAR (VV/VH)
-    and Sentinel-2 multispectral patches.
+    BigEarthNet reference/evaluation dataset helper (Phase 3C).
+
+    Honest status: SatQuery does NOT bundle the BigEarthNet dataset (it is a
+    large external archive of Sentinel-1/2 patches with ``BigEarthNet.txt``
+    annotations) and has NOT evaluated or fine-tuned its VLM against it. This
+    module only documents the reference dataset (19 Corine-derived classes,
+    S1 VV/VH + S2 bands) and serves clearly-labelled DEMO patch metadata for
+    the UI — see ``GET /datasets/bigearthnet/samples`` (stamped
+    ``mode="mock"``) and ``GET /datasets/bigearthnet/eval`` (stamped
+    ``NOT_AVAILABLE``). No real patch tiles and no metrics are fabricated.
     """
 
     def __init__(self, data_dir: str = "./data/bigearthnet"):
@@ -24,7 +32,8 @@ class BigEarthNetDatasetManager:
 
     def get_sample_patches(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Returns mock/parsed BigEarthNet sample patches with Sentinel-1 and Sentinel-2 band metadata.
+        Demo patch metadata ONLY — canned entries, never presented as live
+        BigEarthNet tiles (the API stamps ``mode="mock"``).
         """
         samples = []
         sample_locs = [
@@ -36,10 +45,12 @@ class BigEarthNetDatasetManager:
             ("patch_s2_s1_006", [75.8577, 26.9124], ["Arable land", "Natural grassland"])
         ]
 
-        for idx, (key, coords, labels) in enumerate(sample_locs[:limit]):
+        for key, coords, labels in sample_locs[:limit]:
             samples.append({
                 "sample_key": key,
-                "dataset": "BigEarthNet-S1-S2",
+                "dataset": "BigEarthNet-S1-S2 (demo metadata)",
+                "is_demo": True,
+                "demo_note": "Canned metadata for UI illustration, not a live BigEarthNet tile.",
                 "sentinel_1_polarizations": ["VV", "VH"],
                 "sentinel_2_bands": ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"],
                 "corine_classes": labels,
@@ -48,7 +59,19 @@ class BigEarthNetDatasetManager:
             })
         return samples
 
-    def get_class_distribution(self) -> Dict[str, int]:
-        return {cls_name: 120 + idx * 15 for idx, cls_name in enumerate(BIGEARTHNET_19_CLASSES)}
+    def get_class_distribution(self) -> Dict[str, object]:
+        """
+        DEMO class distribution (mock counts only, for UI illustration).
+        NOT a real BigEarthNet statistic — the response flags ``is_demo`` so
+        it can never be mistaken for measured class frequencies.
+        """
+        return {
+            "is_demo": True,
+            "note": "Illustrative mock counts, not measured BigEarthNet statistics.",
+            "counts": {
+                cls_name: 120 + idx * 15
+                for idx, cls_name in enumerate(BIGEARTHNET_19_CLASSES)
+            },
+        }
 
 bigearthnet_manager = BigEarthNetDatasetManager()

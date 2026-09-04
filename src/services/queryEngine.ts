@@ -301,6 +301,72 @@ function buildConversationalResponse(
   };
 }
 
+/**
+ * Honest static explainer for offline definition questions ("What is NDVI?",
+ * "Explain what Sentinel-2 is."). Returns a QueryResponse only for known
+ * concepts; the text states it is a static explainer and that no analysis
+ * ran, so it can never be mistaken for a measured result over a location.
+ */
+function offlineKnowledgeReply(raw: string): QueryResponse | null {
+  const lower = raw.toLowerCase();
+  let text: string | null = null;
+  if (/\bndvi\b/.test(lower)) {
+    text =
+      "**NDVI** (Normalized Difference Vegetation Index) measures vegetation vigour from satellite reflectance: NDVI = (NIR − RED) / (NIR + RED), with RED = Sentinel-2 B04 and NIR = B08. Dense healthy vegetation is strongly positive (~0.6–0.9), bare soil/urban near zero, water negative. " +
+      "Ask \u201Cwhat is the NDVI of this scene?\u201D to run a real NDVI analysis. " +
+      "_(Static explainer — no imagery was analysed.)_";
+  } else if (/\bndwi\b/.test(lower)) {
+    text =
+      "**NDWI** (Normalized Difference Water Index) highlights open water: NDWI = (GREEN − NIR) / (GREEN + NIR) using Sentinel-2 B03 and B08. Water is strongly positive; soil and dry vegetation are negative. " +
+      "Ask \u201Cfind water around Delhi\u201D to run a real water detection. " +
+      "_(Static explainer — no imagery was analysed.)_";
+  } else if (/\bsentinel[- ]?2\b/.test(lower) || /\bsentinel\b/.test(lower)) {
+    text =
+      "**Sentinel-2** is ESA's Earth-observation mission under Copernicus (2A/2B/2C). Its MSI instrument images land in 13 spectral bands at 10–60 m resolution roughly every 5 days; the L2A product provides atmospherically corrected surface reflectance as free, open data. SatQuery analyses real Sentinel-2 scenes through the live backend. " +
+      "_(Static explainer — no imagery was analysed.)_";
+  } else if (/\bremote\s+sensing\b|\bsatellite\s+imagery\b|\bsatellite\b/.test(lower)) {
+    text =
+      "Remote sensing is measuring Earth's surface from space with satellite sensors — optical (reflected sunlight, e.g. Sentinel-2), SAR (radar, e.g. Sentinel-1) or thermal. SatQuery turns real Sentinel-2 reflectance into vegetation (NDVI), water (NDWI), land-cover and change analyses. " +
+      "_(Static explainer — no imagery was analysed.)_";
+  } else if (/\bland\s*cover\b/.test(lower)) {
+    text =
+      "Land cover is the physical surface type seen from space — water, vegetation/cropland, built-up, bare soil and more. SatQuery classifies land cover from real Sentinel-2 reflectance with a trained RandomForest model through the live backend. " +
+      "_(Static explainer — no imagery was analysed.)_";
+  }
+  if (!text) return null;
+
+  const result: DetectionResult = {
+    kind: "detection",
+    toolId: "conversational_assistant",
+    queryId: `k-${Date.now()}`,
+    mode: "mock",
+    confidence: 0,
+    location: "Conversation",
+    centre: { lat: 20.5937, lng: 78.9629 },
+    features: [],
+    totalFeatures: 0,
+    summaryText: text,
+    model: "static-knowledge",
+    modelKind: undefined,
+  };
+  return {
+    queryId: `q-${Date.now()}`,
+    intent: { type: "general_question", centre: result.centre, confidence: 0.88 },
+    result,
+    responseText: text,
+    attachments: [],
+    suggestedActions: [
+      "Ask a follow-up",
+      "Try an analysis: e.g. \u201Cwhat is the NDVI of this scene?\u201D",
+    ],
+    processingTimeMs: 0,
+    trace: [
+      "No live AI reachable — answered from built-in knowledge (static, offline)",
+      "No analysis tool ran; no imagery was analysed",
+    ],
+  };
+}
+
 // ── Public API ─────────────────────────────────────────────
 
 /**
@@ -406,6 +472,17 @@ export async function processQueryAsync(
     });
     if (ai) {
       return buildConversationalResponse(userQuery, parsed, ai.reply, ai.model);
+    }
+    // Offline: educational/definition questions get an honest static
+    // explainer (real textbook facts — never a fake analysis of a demo
+    // city). Everything else keeps the deterministic demo engine.
+    const knowledge = offlineKnowledgeReply(userQuery.raw);
+    if (knowledge) {
+      knowledge.queryId = userQuery.id;
+      knowledge.result.queryId = userQuery.id;
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(knowledge), 400);
+      });
     }
     // Offline: local deterministic pipeline (same cadence as before).
     return new Promise((resolve) => {

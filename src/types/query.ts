@@ -331,6 +331,11 @@ export interface VisualResult extends Omit<AnalysisResultBase, "confidence"> {
   imageSize?: string;
   /** Backend-measured inference latency, if reported. */
   inferenceLatencyMs?: number;
+  /** Backend-measured time to load the model weights for THIS request
+   *  (absent when the model was already loaded — see `modelReused`). */
+  modelLoadLatencyMs?: number;
+  /** True when the model weights were already cached in memory (no reload). */
+  modelReused?: boolean;
   /** Device the model ran on (e.g. "cpu"). */
   device?: string;
   /** True-colour RGB preview PNG data URL (backend-rendered from real bands). */

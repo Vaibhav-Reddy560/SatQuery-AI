@@ -85,6 +85,20 @@ const RULES: IntentRule[] = [
       /\b(measure|estimate|calculate)\b.*\b(perimeter|boundary|coastline|shoreline|outline)\b/i,
     ],
   },
+  // Educational / definition questions ("What is NDVI?", "Explain what
+  // Sentinel-2 is.") are general_question — answered conversationally, never
+  // routed to an analysis tool over an arbitrary location. Sentence-anchored
+  // (or explain/define) so analysis asks like "what is the NDVI of this
+  // scene?" or "what is the NDVI around Mumbai?" still reach the NDVI tool.
+  {
+    intent: "general_question",
+    patterns: [
+      /\b(?:what|what'?s)\s+(?:is|are)\s+(?:an?\s+|the\s+)?(?:ndvi|ndwi|sentinel[- ]?2|landsat|remote\s+sensing|sar|satellite\s+imagery|spectral\s+index(?:es)?|land\s*cover|gis)\s*[?.!]?$/i,
+      /\bwhat\s+does\s+(?:ndvi|ndwi|sentinel[- ]?2|landsat|sar)\s+(?:mean|stand\s+for)\b/i,
+      /\b(?:ndvi|ndwi|sentinel[- ]?2|landsat)\s+(?:means?|stands\s+for)\b/i,
+      /^(?!.*\bvisible\b)(?!.*\b(?:this|the|that)\s+(?:satellite\s+)?(?:image|scene|imagery|picture|photo|region|area)\b).*\b(?:define|explain)\b[^.]{0,80}\b(?:ndvi|ndwi|sentinel[- ]?2|landsat|remote\s+sensing|sar|satellite\s+imagery|spectral\s+index(?:es)?|land\s*cover|gis)\b/i,
+    ],
+  },
   {
     intent: "estimate_crop_health",
     patterns: [
@@ -136,6 +150,7 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number }> = {
   bikaner:            { lat: 28.0229, lng: 73.3119 },
   ajmer:              { lat: 26.4499, lng: 74.6399 },
   "thar desert":      { lat: 27.0238, lng: 70.9000 },
+  jaisalmer:          { lat: 27.0,    lng: 70.9 },
   rajasthan:          { lat: 27.0238, lng: 74.2179 },
 
   // ── Karnataka ────────────────────────────────────────────────
@@ -181,7 +196,10 @@ const KNOWN_LOCATIONS: Record<string, { lat: number; lng: number }> = {
   "west bengal":      { lat: 22.9868, lng: 87.8550 },
 
   // ── Other major cities (pre-existing) ────────────────────────
-  delhi:              { lat: 28.6139, lng: 77.2090 },
+  // Delhi centre is matched to the bundled real West Delhi sample scene
+  // (28.66 N / 77.10 E) so offline city queries resolve to that scene.
+  delhi:              { lat: 28.66,   lng: 77.10 },
+  "west delhi":       { lat: 28.66,   lng: 77.10 },
   hyderabad:          { lat: 17.385,  lng: 78.4867 },
   ahmedabad:          { lat: 23.0225, lng: 72.5714 },
   lucknow:            { lat: 26.8467, lng: 80.9462 },

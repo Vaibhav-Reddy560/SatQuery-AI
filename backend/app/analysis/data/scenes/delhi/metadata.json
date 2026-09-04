@@ -1,0 +1,27 @@
+{
+  "source": "Earth Search STAC (https://earth-search.aws.element84.com) \u2014 sentinel-2-l2a",
+  "authentication": "none",
+  "license": "Copernicus Programme terms \u2014 free to use (https://dataspace.copernicus.eu/terms-and-conditions)",
+  "scene_id": "S2B_43RGM_20250324_0_L2A",
+  "region": "Delhi / West Delhi, India",
+  "acquisition_datetime": "2025-03-24T05:41:06.496000Z",
+  "cloud_cover_percent": 9.3e-05,
+  "epsg": 32643,
+  "crs": "EPSG:32643",
+  "pixel_size_m": 10,
+  "bands": [
+    "B02 (BLUE 10m)",
+    "B03 (GREEN 10m)",
+    "B04 (RED 10m)",
+    "B08 (NIR 10m)",
+    "SCL (cloud mask)"
+  ],
+  "scale_factor": 0.0001,
+  "center_lat": 28.66,
+  "center_lng": 77.1,
+  "pixels": 224,
+  "sample_ndvi_mean": 0.2519,
+  "sample_ndwi_mean": -0.3191,
+  "regenerate_command": "python scripts/fetch_indian_scene_samples.py --name delhi",
+  "provider_note": "Free public STAC; anonymous reads; no SLA; may be rate-limited."
+}
