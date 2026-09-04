@@ -46,13 +46,19 @@ def test_datasets_bigearthnet_endpoint():
     data = response.json()
     assert data["dataset"] == "BigEarthNet"
     assert len(data["samples"]) > 0
+    # Phase 3A: mock/demo patches must be explicitly labelled, never presented
+    # as live BigEarthNet data.
+    assert data["mode"] == "mock"
 
-def test_vrsbench_eval_endpoint():
+def test_vrsbench_eval_endpoint_reports_not_available():
+    """Phase 3A: VRSBench is not evaluated, so the endpoint must say so
+    instead of fabricating benchmark metrics."""
     response = client.get("/api/v1/datasets/vrsbench/eval")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "COMPLETED"
-    assert "metrics" in data
+    assert data["status"] == "NOT_AVAILABLE"
+    assert data["evaluated"] is False
+    assert data["metrics"] is None
 
 def test_model_status_endpoint():
     response = client.get("/api/v1/models/status")

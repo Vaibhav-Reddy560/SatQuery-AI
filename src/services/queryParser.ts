@@ -204,7 +204,10 @@ export function parseQuery(raw: string): QueryIntent {
     for (const pattern of rule.patterns) {
       if (pattern.test(lower)) {
         matchedIntent = rule.intent;
-        matchedConfidence = 0.75 + Math.random() * 0.2; // 0.75–0.95
+        // Deterministic heuristic confidence (Phase 3A): the client-side parser
+        // is a keyword matcher, so a random confidence would be a fabricated
+        // number. A fixed heuristic value is honest about being a guess.
+        matchedConfidence = 0.85;
         break;
       }
     }

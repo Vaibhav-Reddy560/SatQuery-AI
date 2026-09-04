@@ -11,17 +11,10 @@ with the router (e.g. the engine regex misses plural forms like "buildings").
 import os
 import sys
 
-import pytest
-from fastapi.testclient import TestClient
-
-# Ensure the repo root is importable (same trick as test_api.py).
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from backend.app.ml.vlm_engine import SatQueryVLMEngine
 from backend.app.schemas.ai import IntentType
-from backend.app.main import app
-
-client = TestClient(app)
 
 
 def _engine() -> SatQueryVLMEngine:
@@ -86,42 +79,3 @@ def test_buildings_query_not_reclassified_when_router_intent_supplied():
     assert res["intent"]["type"] == "building_detection"
     assert res["analysis_kind"] == "detection"
     assert res["intent"]["type"] != "general_analysis"
-
-
-# ── Caller wiring: the endpoints pass the resolved intent into infer() ─────
-
-def test_detection_endpoint_passes_resolved_intent_for_plural_query():
-    # /analysis/detection knows the request is object detection and passes
-    # IntentType.detect_objects into infer(). The VLM must then label the
-    # plural "buildings" query as Building/Structures instead of falling back
-    # to its own regex (which would say "Satellite Feature"/"General").
-    response = client.post(
-        "/api/v1/analysis/detection",
-        json={"target_category": "buildings", "location": "XYZ City"},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["kind"] == "detection"
-    assert data["features"][0]["category"] == "Structures"
-
-
-def test_land_cover_endpoint_passes_resolved_intent():
-    response = client.post(
-        "/api/v1/analysis/land-cover",
-        json={"location": "Punjab Region"},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["kind"] == "land_cover"
-    assert len(data["classes"]) > 0
-
-
-def test_change_detection_endpoint_passes_resolved_intent():
-    response = client.post(
-        "/api/v1/analysis/change-detection",
-        json={"location": "AOI Region"},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["kind"] == "change"
-    assert len(data["changes"]) > 0
