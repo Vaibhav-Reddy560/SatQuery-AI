@@ -24,6 +24,7 @@ import type {
   QueryIntent,
   QueryResponse,
   VegetationResult,
+  VisualResult,
   WaterResult,
 } from "@/types/query";
 
@@ -40,6 +41,7 @@ const INTENT_MAP: Record<string, IntentType> = {
   vegetation_analysis: "detect_vegetation_loss",
   measure_area: "measure_area",
   measure_distance: "measure_distance",
+  visual_interpretation: "visual_interpretation",
   general_satellite_question: "general_question",
   unknown: "general_question",
 };
@@ -51,6 +53,7 @@ const TOOL_MAP: Record<string, AnalysisToolId> = {
   land_cover_classifier: "land_cover_classifier",
   change_detector: "change_detector",
   vegetation_analyzer: "vegetation_analyser",
+  visual_analyzer: "visual_analyzer",
 };
 
 // ── Backend JSON shapes (mirror of the FastAPI response) ──────────────────
@@ -178,6 +181,15 @@ interface BackendPayload {
   value?: number | null;
   unit?: string | null;
   points?: number[][] | null;
+  // Visual (vision-language) results.
+  answer?: string | null;
+  question?: string | null;
+  context_supplied?: boolean | null;
+  context_source?: string | null;
+  image_size?: string | null;
+  inference_latency_ms?: number | null;
+  device?: string | null;
+  image_data_url?: string | null;
 }
 
 interface BackendIntent {
@@ -539,6 +551,34 @@ function mapResult(
         unit: str(payload.unit ?? null, "km"),
         points: (payload.points ?? []).map((p) => ({ lat: num(p?.[1], 0), lng: num(p?.[0], 0) })),
         summaryText: str(payload.summary_text ?? null, "Measurement complete."),
+      };
+      return result;
+    }
+    case "visual": {
+      // Real vision-language interpretation (SmolVLM over actual Sentinel-2
+      // RGB pixels). Preserve every backend field verbatim — never rebuild or
+      // approximate the answer. A VLM has no calibrated confidence, so no
+      // confidence is reported (backend sends null; we omit the field).
+      const result: VisualResult = {
+        kind: "visual",
+        toolId: toolIdFor(payload, kind),
+        queryId,
+        location,
+        centre,
+        mode: "live",
+        model: payload.model ?? undefined,
+        modelVersion: payload.model_version ?? undefined,
+        modelKind: payload.model_kind === "vlm" ? "vlm" : undefined,
+        summaryText: str(payload.summary_text ?? null, ""),
+        answer: str(payload.answer ?? null, ""),
+        question: str(payload.question ?? null, ""),
+        imagery: mapImagery(payload.imagery),
+        contextSupplied: payload.context_supplied === true,
+        contextSource: str(payload.context_source ?? null, "none"),
+        imageSize: payload.image_size ?? undefined,
+        inferenceLatencyMs: payload.inference_latency_ms ?? undefined,
+        device: payload.device ?? undefined,
+        imageDataUrl: payload.image_data_url ?? undefined,
       };
       return result;
     }

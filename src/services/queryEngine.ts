@@ -138,6 +138,10 @@ function formatResponse(result: AnalysisOutput): string {
       // Forward-compat: backend vegetation/water results carry their own
       // rich summary; the local mock engine never produces these kinds.
       return result.summaryText;
+    case "visual":
+      // Real VLM results always come from the live backend; the answer is the
+      // model's actual output, never rewritten or approximated.
+      return result.answer || result.summaryText;
     case "measurement":
       return formatMeasurementResponse(result);
   }
@@ -190,6 +194,11 @@ function getAttachments(result: AnalysisOutput): QueryResponse["attachments"] {
       return [
         { type: "map_region", label: "Measurement overlay", confidence: result.confidence },
       ];
+    case "visual":
+      return [
+        { type: "image", label: "Analysed Sentinel-2 scene (true-colour RGB)" },
+        { type: "data", label: "Vision-language interpretation" },
+      ];
   }
 }
 
@@ -206,6 +215,7 @@ function getSuggestedActions(intent: QueryIntent): string[] {
     detect_vegetation_loss: ["Show on map", "Generate vegetation report"],
     detect_deforestation: ["Show on map", "Compare with baseline"],
     estimate_crop_health: ["View NDVI map", "Estimate yield"],
+    visual_interpretation: ["Analyze vegetation over this scene", "Detect water here"],
     general_question: ["Ask a follow-up"],
   };
   return [...(extras[intent.type] ?? []), ...base];
@@ -219,8 +229,10 @@ function getSuggestedActions(intent: QueryIntent): string[] {
  * (which may embed large data URLs) so nothing huge is shipped to the model.
  */
 function summarizeResultForAi(result: AnalysisOutput): string {
+  // A VLM has no calibrated confidence, so visual results carry none.
+  const confidence = result.kind === "visual" ? null : result.confidence;
   const head = `kind=${result.kind}; tool=${result.toolId}; location=${result.location}; ` +
-    `confidence=${result.confidence}${result.mode ? `; mode=${result.mode}` : ""}` +
+    `confidence=${confidence}${result.mode ? `; mode=${result.mode}` : ""}` +
     (result.model ? `; model=${result.model}${result.modelVersion ? ` (${result.modelVersion})` : ""}` : "");
   switch (result.kind) {
     case "detection":
@@ -246,6 +258,10 @@ function summarizeResultForAi(result: AnalysisOutput): string {
         (result.ndwiStats ? `; ndwi_stats=${JSON.stringify(result.ndwiStats)}` : "");
     case "measurement":
       return `${head}; measurement_type=${result.measurementType}; value=${result.value}; unit=${result.unit}; points=${result.points.length}`;
+    case "visual":
+      // Not normally sent to the prose writer (real VLM answers are preserved
+      // verbatim), but kept for type completeness.
+      return `${head}; question=${result.question}; answer=${result.answer}`;
   }
 }
 
@@ -299,6 +315,37 @@ export function processQuery(userQuery: Query, opts: ProcessQueryOptions = {}): 
   const intent = parseQuery(userQuery.raw);
   if (opts.aoiCentre) intent.centre = opts.aoiCentre;
   if (opts.aoiName && !intent.location) intent.location = opts.aoiName;
+
+  // Visual interpretation is a REAL live-backend capability (SmolVLM over
+  // actual Sentinel-2 RGB pixels). The local mock engine must NEVER fabricate
+  // a visual answer: offline, return an honest mock-stamped unavailable result.
+  if (intent.type === "visual_interpretation") {
+    const unavailable: DetectionResult = {
+      kind: "detection",
+      toolId: "visual_analyzer",
+      queryId: userQuery.id,
+      mode: "mock",
+      confidence: 0,
+      location: intent.location ?? "Selected AOI",
+      centre: intent.centre,
+      features: [],
+      totalFeatures: 0,
+      summaryText:
+        "Visual interpretation is unavailable offline: it requires the live " +
+        "backend running the real vision-language model (SmolVLM) over real " +
+        "Sentinel-2 imagery. No visual result was fabricated.",
+    };
+    return {
+      queryId: userQuery.id,
+      intent,
+      result: unavailable,
+      responseText: unavailable.summaryText,
+      attachments: [],
+      suggestedActions: ["Ask a follow-up"],
+      processingTimeMs: 0,
+      trace: ["Visual interpretation needs the live backend — not available offline (mock)"],
+    };
+  }
 
   // 2. Select tool
   const tool = findToolForIntent(intent.type);
@@ -390,8 +437,10 @@ export async function processQueryAsync(
   }
 
   // ── 3. Live-model prose over REAL backend results only —─
-  // (Mock fallback results keep their honest, deterministic summaries.)
-  if (liveResult) {
+  // (Mock fallback results keep their honest, deterministic summaries.
+  // Real VLM visual answers are the model's own words and are preserved
+  // verbatim — never rewritten by a second model.)
+  if (liveResult && response.result.kind !== "visual") {
     const ai = await chatWithAi({
       messages: aiMessages,
       systemPrompt: ANALYSIS_WRITER_PROMPT,

@@ -93,6 +93,26 @@ const RULES: IntentRule[] = [
       /\b(crop\s+health|field\s+health)\b/i,
     ],
   },
+  // Visual interpretation: asking the assistant to look AT actual image
+  // pixels. Mirrors the backend intent_detector rules so the frontend routes
+  // these to the real VLM pipeline instead of the conversational model.
+  {
+    intent: "visual_interpretation",
+    patterns: [
+      /\b(what do you see|what can you see|describe|describe what)\b.*\b(image|imagery|scene|satellite|aerial|photo|picture|region|area)\b/i,
+      /\b(image|scene|satellite imagery)\b.*\b(show|depict|contain|appear|look)\b/i,
+      /\bdoes the image\b.*\b(contain|show|appear|look)\b/i,
+      /\b(describe|tell me about)\b.*\b(landscape|terrain|land cover|appearance)\b/i,
+      /\b(what|how)\b.*\b(look|appear|see)\b.*\b(from above|in this|visible)\b/i,
+      /\b(describe|interpret|analyse|analyze)\b.*\b(what is visible|the scene|this image)\b/i,
+      // Narrow "what is visible in the image?" family: requires BOTH the
+      // "what('s) is visible" opener (expanded "what is visible" or
+      // contracted "what's/whats visible") AND an imagery noun, so ordinary
+      // questions containing "visible" or "image" alone are not routed
+      // to the VLM. Mirrors the backend intent_detector rule exactly.
+      /\b(?:what\s+is|what'?s)\s+visible\b.*\b(image|imagery|scene|satellite|aerial|photo|picture)\b/i,
+    ],
+  },
 ];
 
 // ── Location extraction ────────────────────────────────────
@@ -239,6 +259,7 @@ export function intentLabel(intent: IntentType): string {
     detect_vegetation_loss:  "Vegetation Loss Detection",
     detect_deforestation:    "Deforestation Detection",
     estimate_crop_health:    "Crop Health Estimation",
+    visual_interpretation:   "Visual Interpretation",
     general_question:        "General Analysis",
   };
   return LABELS[intent];

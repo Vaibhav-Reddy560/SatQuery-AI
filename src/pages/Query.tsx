@@ -8,6 +8,7 @@ import { VegetationResultPanel } from "@/components/query/VegetationResultPanel"
 import { WaterResultPanel } from "@/components/query/WaterResultPanel";
 import { LandCoverResultPanel } from "@/components/query/LandCoverResultPanel";
 import { ChangeResultPanel } from "@/components/query/ChangeResultPanel";
+import { VisualResultPanel } from "@/components/query/VisualResultPanel";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { ScanSweep } from "@/components/ui/ScanSweep";
@@ -172,6 +173,10 @@ function Assistant({ entry }: { entry: Entry }) {
 
         {entry.response && entry.response.result.kind === "change" && (
           <ChangeResultPanel result={entry.response.result} />
+        )}
+
+        {entry.response && entry.response.result.kind === "visual" && (
+          <VisualResultPanel result={entry.response.result} />
         )}
 
         {entry.response && <AgentTrace response={entry.response} />}
